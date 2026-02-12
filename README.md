@@ -11,9 +11,14 @@ Claude Code skill for TON blockchain data analysis on [Dune Analytics](https://d
 
 ## Install
 
+In Claude Code, run:
+
 ```
-/skill add ohld/ton-analyst
+/plugin marketplace add ohld/ton-analyst
+/plugin install ton-analyst@ohld-ton-analyst
 ```
+
+This adds the repo as a marketplace source and installs the skill. Auto-updates are enabled by default — you'll get new patterns and fixes as they're pushed.
 
 ## Quick start
 
@@ -61,8 +66,9 @@ skills/ton-analyst/
 ## Local Development
 
 1. Clone the repo
-2. Install the skill locally: `claude skill add /path/to/ton-data-llm-txt`
-   (or symlink into `~/.claude/skills/`)
+2. Install locally — either:
+   - `claude --plugin-dir ./path/to/ton-analyst` (per-session), or
+   - Symlink: `ln -s /path/to/ton-analyst/skills/ton-analyst ~/.claude/skills/ton-analyst`
 3. Edit files in `skills/ton-analyst/`
 4. Test: open Claude Code and ask a TON-related question — verify your changes are picked up
 5. Submit a PR with your changes

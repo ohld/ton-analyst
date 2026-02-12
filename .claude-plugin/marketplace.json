@@ -4,11 +4,13 @@
   "plugins": [
     {
       "name": "ton-analyst",
-      "source": ".",
+      "source": "./",
       "description": "TON blockchain analyst — Dune SQL, on-chain research, data reports",
       "version": "0.1.0",
-      "keywords": ["ton", "blockchain", "dune", "sql", "analytics", "research"],
-      "strict": false
+      "strict": false,
+      "skills": [
+        "./skills/ton-analyst"
+      ]
     }
   ]
 }
