@@ -1,0 +1,13 @@
+-- Real Wallets with $1K+ / $10K+ USDT Over Time
+--
+-- Question: How many real wallets hold significant USDT balances over time?
+-- Uses: Same structure as real-wallets-ton.sql with two differences:
+--   1. asset = USDT jetton master address (not 'TON')
+--   2. amount / 1e6 (USDT has 6 decimals on TON)
+--
+-- USDT jetton master: 0:B113A994B5024A16719F69139328EB759596C38A25F59028B146FECDC3621DFE
+-- Thresholds: 1000 and 10000 (in USDT dollars, not TON)
+--
+-- The query is identical to real-wallets-ton.sql except:
+--   - WHERE B.asset = '0:B113A994B5024A16719F69139328EB759596C38A25F59028B146FECDC3621DFE'
+--   - MAX_BY(B.amount, B.block_time) / 1e6 AS usdt_balance  (6 decimals, not 9)
