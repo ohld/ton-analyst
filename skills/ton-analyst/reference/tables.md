@@ -19,12 +19,16 @@ Current state of all TON accounts.
 
 **Status gotcha:** Early miners = `status='uninit'` (NOT `frozen`). The `frozen` status has only 31 addresses with ~0 TON.
 
+**Known wallet interfaces:** `wallet_v3r2`, `wallet_v4r2`, `wallet_v5r1`, `wallet_highload_v3r1` (high-throughput, used by some CEXes — but NOT a CEX indicator on its own).
+
 **Interface patterns:**
 ```sql
 -- Is wallet?
 cardinality(FILTER(interfaces, i -> regexp_like(i, '^wallet_'))) > 0
 -- Is multisig?
 cardinality(FILTER(interfaces, i -> regexp_like(i, '^multisig'))) > 0
+-- Is nominator pool? (catches masterchain + basechain)
+cardinality(FILTER(interfaces, i -> i = 'validation_nominator_pool')) > 0
 -- Exclude jetton wallets
 array_position(A.interfaces, 'jetton_wallet') = 0
 ```

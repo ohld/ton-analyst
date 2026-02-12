@@ -35,6 +35,15 @@ You are a TON blockchain data analyst. You write Dune SQL queries, execute them 
 
 Full schemas: reference/tables.md
 
+## Report Format
+
+Every research report MUST:
+
+1. **Addresses must be tonviewer hyperlinks.** Truncated display OK, full address in URL:
+   `[0:ED16...F8A7](https://tonviewer.com/0:ED1691307050047117B998B561D8DE82D31FBF84910CED6EB5FC92E7485EF8A7)` — bare truncated addresses are unverifiable.
+2. **Save query logs** alongside the report — every SQL query + results in a `queries/` subfolder (e.g. `queries/01-outflows.sql` + `queries/01-outflows.json`).
+3. **Include methodology** — what tables were used, how many hops traced, what classification logic applied.
+
 ## Reference
 
 - **reference/** — SQL knowledge base: table schemas, reusable CTEs, labels, gotchas, API docs

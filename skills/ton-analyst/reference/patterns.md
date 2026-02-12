@@ -16,6 +16,9 @@ CTEs, classification logic, and conventions for TON Dune queries.
 10. **Asset naming:** `'TON'` in balances_history vs `'0:000...000'` in external_balances — normalize when merging.
 11. **`code_hash` classifies unlabeled contracts.** Nominator pools, vesting, multisig — all identifiable by code_hash. See Code Hash Reference below.
 12. **All addresses in Dune are RAW UPPERCASE.** Always use `UPPER('0:b113a994...')` in WHERE clauses, or write addresses in uppercase directly.
+13. **Complex queries timeout on Dune.** Queries with 3+ heavy CTE joins (DEFI_LABELS + LABELS + accounts + messages) often return empty results silently. Split into sequential simpler queries: first get addresses, then classify separately.
+14. **`uninit` accounts can hold TON.** Accounts with `status = 'uninit'` and no `code_hash` can still hold large balances — "parked" funds with no deployed contract. Don't filter them out in flow analysis.
+15. **Interface detection complements code_hash.** For staking pools, `validation_nominator_pool` interface catches pools that code_hash matching misses (e.g. masterchain pools). Prefer interfaces when available, fall back to code_hash for unrecognized contracts.
 
 ## ALL_LABELS + REAL_USERS
 
@@ -91,12 +94,15 @@ Priority-based CASE — first match wins. Uses labels + code_hash + first_tx_sen
             WHEN A.address = '-1:3333333333333333333333333333333333333333333333333333333333333333'
                                                     THEN 'Staked TON (Elector)'
             WHEN A.code_hash IN (
-                'qLqO8gLwVoLiBAOD2HQ09A5JaFjHp7YvJ6rPJyHKJdM=',  -- Nominator Pool
+                'qLqO8gLwVoLiBAOD2HQ09A5JaFjHp7YvJ6rPJyHKJdM=',  -- Nominator Pool (basechain)
                 'Nn28aMPb0QNgfzGKlUqiVFV9AzHbfQPkh7JV0XQdCl4=',  -- Single Nominator
                 'FTbVVlhZPWfXM0jVj+tGlRSqBM7hpKNUBCKBKHEBB3k=',
                 'qADUcXRRa2xFz7mHyqkO5FpDq0z8G4hVHn0fqJbmvMo=',
-                '/8YR8NvOlrOGNhMKEeIJjULGqDNKL8neFMQNE/Y36sc='
-            )                                       THEN 'Staked TON (Nominator Pools)'
+                '/8YR8NvOlrOGNhMKEeIJjULGqDNKL8neFMQNE/Y36sc=',
+                'mj7BS8CY9rRAZMMFIiyuooAPF92oXuaoGYpwle3hDc8='   -- Masterchain validation nominator pool
+            )
+                OR cardinality(FILTER(A.interfaces, i -> i = 'validation_nominator_pool')) > 0
+                                                    THEN 'Staked TON (Nominator Pools)'
             WHEN L.label = 'telegram'               THEN 'Telegram'
             WHEN L.label = 'ton_ecosystem_reserve'  THEN 'TON Ecosystem Reserve'
             WHEN L.category = 'CEX'                 THEN 'CEX'
@@ -172,6 +178,7 @@ Both `ton.balances_history` and `result_external_balances_history` are change-lo
 | `tItTGr7DtxRjgpH3137W3J9qJynvyiBHcTc3TUrotZA=` | Teleswap lock | — | — |
 | `iPv4GOR9XzKPfcNLrUMjuyihLsbHXOnsJdd3RsVuHe0=` | Other lockers | — | — |
 | `09FNqaYn8Ow1MzQYKXYq+SuVQLIb8DZl+sCcK0bqu6w=` | Multisig | ~1,694 | ~6.9 |
+| `mj7BS8CY9rRAZMMFIiyuooAPF92oXuaoGYpwle3hDc8=` | Masterchain validation nominator pool | — | — |
 | `p6Jhak1jmgdsL2fnzOBCP9Khwu5VCtZRwe2hbuE7yso=` | NFT auction | — | — |
 
 Discover new hashes:
@@ -194,3 +201,32 @@ GROUP BY 1 ORDER BY ton DESC LIMIT 50
 - **Clickable links in Dune:** `GET_HREF(url, display_text)`
 - **Engine:** Presto SQL (Dune) — Trino syntax
 - **Array filtering:** `cardinality(FILTER(interfaces, i -> regexp_like(i, '^wallet_.*'))) > 0`
+
+## Multi-Hop Flow Tracing
+
+Trace fund flows through multiple wallet hops (typically 2-4 hops to reach CEX deposits).
+
+**Approach:**
+1. Start from source contract, get direct outflows (hop 1)
+2. For each destination, check if it's a known entity (CEX, DeFi, labeled). If not, trace its outflows (hop 2+)
+3. Repeat until funds land in classified addresses or trail goes cold
+
+**Techniques:**
+- Use `first_tx_sender` from `ton.accounts` as **indirect evidence** of wallet relationship — if wallet A's first_tx_sender is wallet B, they may be controlled by the same entity. NOT proof (third parties can fund fresh addresses).
+- Check destination's current balance — if near zero, the wallet forwarded everything and you need another hop.
+
+**Gotcha:** Do NOT try to do all hops in a single query. Dune will timeout. Instead:
+1. Query hop 1 outflows → save address list
+2. Classify those addresses in a separate query
+3. For unclassified addresses with ~0 balance, query hop 2 outflows
+4. Repeat as needed
+
+```sql
+-- Example: Hop 1 — direct outflows from a source address
+SELECT destination, SUM(value / 1e9) AS ton_sent, COUNT(*) AS tx_count
+FROM ton.messages
+WHERE source = '0:YOUR_ADDRESS_HERE'
+  AND direction = 'in' AND NOT bounced
+  AND block_date >= DATE '2026-01-01'
+GROUP BY 1 ORDER BY 2 DESC LIMIT 50
+```

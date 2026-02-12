@@ -59,8 +59,11 @@ WITH _ AS (SELECT 1)
                 'Nn28aMPb0QNgfzGKlUqiVFV9AzHbfQPkh7JV0XQdCl4=',
                 'FTbVVlhZPWfXM0jVj+tGlRSqBM7hpKNUBCKBKHEBB3k=',
                 'qADUcXRRa2xFz7mHyqkO5FpDq0z8G4hVHn0fqJbmvMo=',
-                '/8YR8NvOlrOGNhMKEeIJjULGqDNKL8neFMQNE/Y36sc='
-            )                                       THEN 'Staked TON (Nominator Pools)'
+                '/8YR8NvOlrOGNhMKEeIJjULGqDNKL8neFMQNE/Y36sc=',
+                'mj7BS8CY9rRAZMMFIiyuooAPF92oXuaoGYpwle3hDc8='
+            )
+                OR cardinality(FILTER(A.interfaces, i -> i = 'validation_nominator_pool')) > 0
+                                                    THEN 'Staked TON (Nominator Pools)'
             WHEN L.label = 'telegram'               THEN 'Telegram'
             WHEN L.label = 'ton_ecosystem_reserve'  THEN 'TON Ecosystem Reserve'
             WHEN L.category = 'CEX'                 THEN 'CEX'

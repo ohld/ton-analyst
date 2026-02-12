@@ -24,6 +24,8 @@
 
 ## Key Addresses
 
+**All addresses in Dune are RAW UPPERCASE.** Use these values directly in SQL WHERE clauses.
+
 | Entity | Address | TON (M) |
 |--------|---------|---------|
 | TON Believers Fund | `0:ED1691307050047117B998B561D8DE82D31FBF84910CED6EB5FC92E7485EF8A7` | 1,301 |
