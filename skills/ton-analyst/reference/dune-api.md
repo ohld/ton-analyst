@@ -12,8 +12,10 @@ Stored in `$DUNE_API_KEY` environment variable (from `~/.zshrc`). Never hardcode
 curl -X POST 'https://api.dune.com/api/v1/sql/execute' \
   -H "X-Dune-API-Key: ${DUNE_API_KEY}" \
   -H 'Content-Type: application/json' \
-  -d '{"sql": "SELECT ... LIMIT 50"}'
+  -d '{"sql": "SELECT ... LIMIT 50", "is_private": true}'
 ```
+
+**Always set `"is_private": true`** — never create public queries.
 
 Returns `execution_id`. Typical wait: 15-60s.
 

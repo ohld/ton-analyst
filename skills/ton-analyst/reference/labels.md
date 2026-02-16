@@ -50,7 +50,11 @@
 CEX = Exchange main wallets + Custodial deposit wallets. Always combine both.
 
 1. **Main wallets** — `dataset_labels` where `category = 'CEX'` (~643 addresses, ~127M TON)
-2. **Deposit wallets** — `result_custodial_wallets` (~9.6M addresses, ~35M TON). Already has `category = 'CEX'` — just UNION ALL.
+2. **Deposit wallets** — `result_custodial_wallets` (~10.8M addresses, ~35M TON)
+
+**WARNING:** `result_custodial_wallets` contains non-CEX wallets (Telegram wallets, bots). Always filter `WHERE category = 'CEX'`.
+
+**Internal transfers:** ~42% of CEX deposit volume is CEX↔CEX shuffling. When counting real user deposits, exclude transfers where source is also custodial.
 
 **Custodial wallets materialized view:** https://dune.com/queries/5032986 — how deposit wallets were identified.
 

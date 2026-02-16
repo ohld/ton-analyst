@@ -40,7 +40,7 @@ All messages (transactions) on TON.
 | Column | Type | Notes |
 |--------|------|-------|
 | block_date | date | **Partition key** — always filter for pruning |
-| block_time | timestamp | |
+| block_time | timestamp | Use for `date_trunc('hour', ...)`. Use `block_date` for range filters |
 | tx_hash | string | |
 | trace_id | string | |
 | direction | string | `'in'` or `'out'` |
@@ -51,6 +51,8 @@ All messages (transactions) on TON.
 | bounced | boolean | Filter with `NOT bounced` |
 | comment | string | Human-readable comment |
 | fwd_fee | bigint | Forward fee |
+
+**CRITICAL — always filter `direction = 'in'` when aggregating.** TON uses async message-passing: a transaction has 1 incoming message and may produce outgoing messages that trigger further transactions (all sharing the same `trace_id`). The `ton.messages` table stores both `direction='in'` and `direction='out'` rows. Without filtering, SUMs and COUNTs will be inflated. See reference/ton-blockchain.md for the full execution model.
 
 **Standard filter:** `WHERE direction = 'in' AND NOT bounced AND block_date >= DATE '...'`
 
@@ -147,13 +149,15 @@ Category breakdown and key labels: see reference/labels.md.
 
 ## dune.ton_foundation.result_custodial_wallets
 
-CEX deposit wallets (~9.6M addresses). Details: see reference/labels.md.
+Custodial deposit wallets (~10.8M addresses). Details: see reference/labels.md.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | address | string | |
-| label | string | e.g. `'Binance | cust'` |
-| category | string | Always `'CEX'` |
+| label | string | e.g. `'Binance | cust'`, `'wallet_in_telegram'` |
+| category | string | `'CEX'` for exchanges, but also contains non-CEX wallets |
+
+**WARNING:** This table contains MORE than CEX wallets. It includes Telegram-hosted wallets and other custodial services. When counting CEX deposits/volumes, always filter `WHERE category = 'CEX'`.
 
 ## dune.ton_foundation.result_external_balances_history
 
