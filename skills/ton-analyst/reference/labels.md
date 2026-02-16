@@ -52,27 +52,11 @@ CEX = Exchange main wallets + Custodial deposit wallets. Always combine both.
 1. **Main wallets** — `dataset_labels` where `category = 'CEX'` (~643 addresses, ~127M TON)
 2. **Deposit wallets** — `result_custodial_wallets` (~10.8M addresses, ~35M TON)
 
-**WARNING:** `result_custodial_wallets` contains non-CEX wallets (Telegram wallets, bots). Always filter:
-```sql
-WHERE category = 'CEX'
-  AND label NOT IN ('wallet_in_telegram', 'crypto_bot', 'xrocket', 'pocketbroker')
-```
+**WARNING:** `result_custodial_wallets` contains non-CEX wallets (Telegram wallets, bots). Always filter `WHERE category = 'CEX'`.
 
 **Internal transfers:** ~42% of CEX deposit volume is CEX↔CEX shuffling. When counting real user deposits, exclude transfers where source is also custodial.
 
 **Custodial wallets materialized view:** https://dune.com/queries/5032986 — how deposit wallets were identified.
-
-### Verified CEX Custodial Addresses (from research)
-
-These addresses were manually verified via flow tracing and are NOT in `dataset_labels`:
-
-| CEX | Raw Address | Friendly | Source |
-|-----|-------------|----------|--------|
-| Bybit | `0:C23A1209B86A15AD9A2741CC11BB785EB3DD14BFFC8EA576ACC31BC24F801BB6` | UQDCOhIJ... | TBF Cluster A (22 wallets → single address) |
-| OKX | `0:07AD2C78C5F14BE96A98DC14A736D7327031D12BF812678A21949B9389F872DC` | UQAHrSx4... | TBF withdrawal tracing |
-| OKX | `0:D5F36BE44D8DC0ED6C13523298E0B317D7854034F1A1C1A9F75F2D95A6606F08` | UQDV82vk... | TBF withdrawal tracing |
-| OKX | `0:1D4AC7CEE722C8B67D93909E4522164F5AA9A0DD03BDB2C4AC7CFA49470B4FF1` | UQAdSsfO... | TBF withdrawal tracing |
-| Binance | `0:5889BC784635AEEA455FA787A7914824B95E17F08431A913B67B3E049B946CC8` | UQBYibx4... | TBF withdrawal (via intermediaries) |
 
 ## DeFi Gap
 

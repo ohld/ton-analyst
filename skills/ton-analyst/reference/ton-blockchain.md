@@ -59,13 +59,15 @@ Always combine both into one "CEX" group for analytics.
 
 ## Traces vs Transactions vs Messages
 
-TON execution model differs from EVM:
+TON execution model differs from EVM — it uses **async message-passing**:
 
 - **Message** — a single transfer between two contracts
 - **Transaction** — one contract processing one incoming message (may produce outgoing messages)
 - **Trace** — the full execution tree from initial external message through all internal messages
 
-`trace_id` = hash of the first transaction in the trace. Use it to group related operations.
+A transaction has exactly 1 incoming message and may produce 0+ outgoing messages, each triggering further transactions. All share the same `trace_id` (hash of the first transaction).
+
+**Why this matters for Dune:** The `ton.messages` table stores both `direction='in'` and `direction='out'` rows for each message. When aggregating (SUM, COUNT), always filter `direction = 'in'` to avoid inflated numbers. See reference/tables.md for the standard filter.
 
 ## DeFi Categories
 
@@ -87,20 +89,6 @@ For analytics: combine all into "DeFi" group.
 
 **pTON:** `0:1150B518...` is StonFi wrapped TON intermediary. Exclude from graphs if swap edge exists.
 
-## Cross-Verification with TONAPI
+## Cross-Verification
 
-Dune's `ton.messages` table records each message twice (`direction='in'` and `direction='out'`). For critical research, cross-verify aggregations with TONAPI:
-
-```bash
-# Get all transactions for an address (deduplicated)
-curl -H "Authorization: Bearer $TONAPI_KEY" \
-  "https://tonapi.io/v2/blockchain/accounts/{address}/transactions?limit=100"
-```
-
-**When to use TONAPI:**
-- Verifying total TON withdrawn from a contract
-- Checking exact transaction counts
-- Debugging when Dune numbers look suspiciously doubled
-- Getting real-time data (Dune may lag)
-
-**TONAPI limits:** Free tier = 1 RPS. Cache responses to JSON. 1000 addresses = ~20 min fetch time.
+For critical research, cross-verify Dune aggregations with TONAPI. See reference/tonapi.md for API details and usage.
