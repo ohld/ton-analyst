@@ -86,3 +86,21 @@ For analytics: combine all into "DeFi" group.
 **Spam tokens:** Filter known spam (e.g., `0:87DAC05A...`) at analysis stage.
 
 **pTON:** `0:1150B518...` is StonFi wrapped TON intermediary. Exclude from graphs if swap edge exists.
+
+## Cross-Verification with TONAPI
+
+Dune's `ton.messages` table records each message twice (`direction='in'` and `direction='out'`). For critical research, cross-verify aggregations with TONAPI:
+
+```bash
+# Get all transactions for an address (deduplicated)
+curl -H "Authorization: Bearer $TONAPI_KEY" \
+  "https://tonapi.io/v2/blockchain/accounts/{address}/transactions?limit=100"
+```
+
+**When to use TONAPI:**
+- Verifying total TON withdrawn from a contract
+- Checking exact transaction counts
+- Debugging when Dune numbers look suspiciously doubled
+- Getting real-time data (Dune may lag)
+
+**TONAPI limits:** Free tier = 1 RPS. Cache responses to JSON. 1000 addresses = ~20 min fetch time.

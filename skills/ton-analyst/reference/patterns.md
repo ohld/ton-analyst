@@ -4,21 +4,24 @@ CTEs, classification logic, and conventions for TON Dune queries.
 
 ## Critical Gotchas
 
-1. **`dataset_labels.category` is never NULL.** No COALESCE needed. Source: [ton-studio/ton-labels](https://github.com/ton-studio/ton-labels)
-2. **`result_custodial_wallets` already has `category = 'CEX'`.** Just UNION ALL with dataset_labels.
-3. **DeFi pool addresses are often NOT in dataset_labels.** Build DEFI_LABELS CTE from `result_dex_pools_latest` + `result_external_balances_history` — see below.
-4. **Early miners are `uninit` NOT `frozen`.** Label=`frozen_early_miner`, status=`uninit`.
-5. **Balance is in nanoTON.** Always divide by `1e9`.
-6. **Never sum TON + USDT** — different prices. Show separate columns.
-7. **Always add `LIMIT 50`** when exploring. TON has 145M+ accounts.
-8. **Wallet detection via interfaces:** `cardinality(FILTER(interfaces, i -> regexp_like(i, '^wallet_'))) > 0`
-9. **Change-log tables:** No row = no change. Use `MAX_BY` for snapshots — see FORWARD_FILL below.
-10. **Asset naming:** `'TON'` in balances_history vs `'0:000...000'` in external_balances — normalize when merging.
-11. **`code_hash` classifies unlabeled contracts.** Nominator pools, vesting, multisig — all identifiable by code_hash. See Code Hash Reference below.
-12. **All addresses in Dune are RAW UPPERCASE.** Always use `UPPER('0:b113a994...')` in WHERE clauses, or write addresses in uppercase directly.
-13. **Complex queries timeout on Dune.** Queries with 3+ heavy CTE joins (DEFI_LABELS + LABELS + accounts + messages) often return empty results silently. Split into sequential simpler queries: first get addresses, then classify separately.
-14. **`uninit` accounts can hold TON.** Accounts with `status = 'uninit'` and no `code_hash` can still hold large balances — "parked" funds with no deployed contract. Don't filter them out in flow analysis.
-15. **Interface detection complements code_hash.** For staking pools, `validation_nominator_pool` interface catches pools that code_hash matching misses (e.g. masterchain pools). Prefer interfaces when available, fall back to code_hash for unrecognized contracts.
+1. **`ton.messages` has DUPLICATE rows — ALWAYS filter `direction = 'in'`.** Every message appears twice: `direction='out'` (sender's tx) and `direction='in'` (receiver's tx). Without this filter, all SUMs and COUNTs are exactly 2x real values. This is the #1 source of wrong numbers in TON analysis. Cross-verify critical aggregations with TONAPI.
+2. **`dataset_labels.category` is never NULL.** No COALESCE needed. Source: [ton-studio/ton-labels](https://github.com/ton-studio/ton-labels)
+3. **`result_custodial_wallets` is NOT just CEX.** Contains ~10.8M addresses including Telegram-hosted wallets. Filter: `WHERE category = 'CEX' AND label NOT IN ('wallet_in_telegram', 'crypto_bot', 'xrocket', 'pocketbroker')`.
+4. **CEX internal transfers are ~42% of volume.** When counting real CEX deposits, exclude transfers where `source` is also in `result_custodial_wallets` — otherwise you count CEX↔CEX shuffling as user deposits.
+5. **DeFi pool addresses are often NOT in dataset_labels.** Build DEFI_LABELS CTE from `result_dex_pools_latest` + `result_external_balances_history` — see below.
+6. **Early miners are `uninit` NOT `frozen`.** Label=`frozen_early_miner`, status=`uninit`.
+7. **Balance is in nanoTON.** Always divide by `1e9`.
+8. **Never sum TON + USDT** — different prices. Show separate columns.
+9. **Always add `LIMIT 50`** when exploring. TON has 145M+ accounts.
+10. **Wallet detection via interfaces:** `cardinality(FILTER(interfaces, i -> regexp_like(i, '^wallet_'))) > 0`
+11. **Change-log tables:** No row = no change. Use `MAX_BY` for snapshots — see FORWARD_FILL below.
+12. **Asset naming:** `'TON'` in balances_history vs `'0:000...000'` in external_balances — normalize when merging.
+13. **`code_hash` classifies unlabeled contracts.** Nominator pools, vesting, multisig — all identifiable by code_hash. See Code Hash Reference below.
+14. **All addresses in Dune are RAW UPPERCASE.** Always use `UPPER('0:b113a994...')` in WHERE clauses, or write addresses in uppercase directly.
+15. **Complex queries timeout on Dune.** Queries with 3+ heavy CTE joins (DEFI_LABELS + LABELS + accounts + messages) often return empty results silently. Split into sequential simpler queries: first get addresses, then classify separately.
+16. **`uninit` accounts can hold TON.** Accounts with `status = 'uninit'` and no `code_hash` can still hold large balances — "parked" funds with no deployed contract. Don't filter them out in flow analysis.
+17. **Interface detection complements code_hash.** For staking pools, `validation_nominator_pool` interface catches pools that code_hash matching misses (e.g. masterchain pools). Prefer interfaces when available, fall back to code_hash for unrecognized contracts.
+18. **Cross-verify with TONAPI.** For critical aggregations, check `GET /v2/blockchain/accounts/{addr}/transactions` — TONAPI returns deduplicated data. If your Dune SUM is 2x what TONAPI shows, you forgot `direction = 'in'`.
 
 ## ALL_LABELS + REAL_USERS
 

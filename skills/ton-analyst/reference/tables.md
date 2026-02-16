@@ -40,7 +40,7 @@ All messages (transactions) on TON.
 | Column | Type | Notes |
 |--------|------|-------|
 | block_date | date | **Partition key** — always filter for pruning |
-| block_time | timestamp | |
+| block_time | timestamp | Use for `date_trunc('hour', ...)`. Use `block_date` for range filters |
 | tx_hash | string | |
 | trace_id | string | |
 | direction | string | `'in'` or `'out'` |
@@ -52,7 +52,11 @@ All messages (transactions) on TON.
 | comment | string | Human-readable comment |
 | fwd_fee | bigint | Forward fee |
 
+**CRITICAL — `direction = 'in'` is MANDATORY.** Every message appears TWICE in this table: once as `direction = 'out'` (from sender's tx) and once as `direction = 'in'` (from receiver's tx). If you forget this filter, all SUMs and COUNTs will be exactly 2x the real values. This is the #1 cause of wrong numbers in TON analysis.
+
 **Standard filter:** `WHERE direction = 'in' AND NOT bounced AND block_date >= DATE '...'`
+
+**Cross-verify critical aggregations with TONAPI** (`GET /v2/blockchain/accounts/{addr}/transactions`) — it returns deduplicated data. If your Dune SUM is 2x what TONAPI shows, you forgot `direction = 'in'`.
 
 ## ton.balances_history
 
@@ -147,13 +151,19 @@ Category breakdown and key labels: see reference/labels.md.
 
 ## dune.ton_foundation.result_custodial_wallets
 
-CEX deposit wallets (~9.6M addresses). Details: see reference/labels.md.
+Custodial deposit wallets (~10.8M addresses). Details: see reference/labels.md.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | address | string | |
-| label | string | e.g. `'Binance | cust'` |
-| category | string | Always `'CEX'` |
+| label | string | e.g. `'Binance | cust'`, `'wallet_in_telegram'` |
+| category | string | `'CEX'` for exchanges, but also contains non-CEX wallets |
+
+**WARNING:** This table contains MORE than CEX wallets. It includes Telegram-hosted wallets and other custodial services. When counting CEX deposits/volumes, always filter:
+```sql
+WHERE category = 'CEX'
+  AND label NOT IN ('wallet_in_telegram', 'crypto_bot', 'xrocket', 'pocketbroker')
+```
 
 ## dune.ton_foundation.result_external_balances_history
 
