@@ -204,6 +204,24 @@ GROUP BY 1 ORDER BY ton DESC LIMIT 50
 - **Engine:** Presto SQL (Dune) — Trino syntax
 - **Array filtering:** `cardinality(FILTER(interfaces, i -> regexp_like(i, '^wallet_.*'))) > 0`
 
+## Dune Hyperlinks (GET_HREF)
+
+Use `GET_HREF(url, display_text)` to make clickable links in Dune table visualizations. Convert base64 hashes to hex for tonviewer URLs: `LOWER(TO_HEX(FROM_BASE64(hash)))`. Works for both `trace_id` and `deployment_tx_hash`.
+
+```sql
+-- Transaction/trace link (prefer trace_id over tx_hash — tonviewer shows full trace)
+GET_HREF(
+    'https://tonviewer.com/transaction/' || LOWER(TO_HEX(FROM_BASE64(m.trace_id))),
+    DATE_FORMAT(m.block_time, '%Y-%m-%d %H:%i')
+) AS transaction
+
+-- Address link (truncated friendly address as display text)
+GET_HREF(
+    'https://tonviewer.com/' || ton_address_raw_to_user_friendly(m.source),
+    SUBSTR(ton_address_raw_to_user_friendly(m.source), 1, 6) || '...' || SUBSTR(ton_address_raw_to_user_friendly(m.source), -4)
+) AS address
+```
+
 ## Multi-Hop Flow Tracing
 
 Trace fund flows through multiple wallet hops (typically 2-4 hops to reach CEX deposits).
