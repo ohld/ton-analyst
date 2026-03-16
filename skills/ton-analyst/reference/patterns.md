@@ -21,6 +21,10 @@ CTEs, classification logic, and conventions for TON Dune queries.
 15. **Complex queries timeout on Dune.** Queries with 3+ heavy CTE joins (DEFI_LABELS + LABELS + accounts + messages) often return empty results silently. Split into sequential simpler queries: first get addresses, then classify separately.
 16. **`uninit` accounts can hold TON.** Accounts with `status = 'uninit'` and no `code_hash` can still hold large balances — "parked" funds with no deployed contract. Don't filter them out in flow analysis.
 17. **Interface detection complements code_hash.** For staking pools, `validation_nominator_pool` interface catches pools that code_hash matching misses (e.g. masterchain pools). Prefer interfaces when available, fall back to code_hash for unrecognized contracts.
+18. **`LEFT()` is a reserved keyword in Trino.** Use `SUBSTR(comment, 1, 80)` instead of `LEFT(comment, 80)`. Trino treats LEFT as a join keyword.
+19. **CEX attribution must use net flow, capped at spending.** When analyzing "what % funded by CEX": `min(spending, max(0, cex_in - cex_out)) / spending`. Never use gross CEX inflows — inflates if user received more than they spent. See examples/fragment-inflows.sql.
+20. **Fragment `label = 'fragment'` not `name LIKE '%ragment%'`.** All major Fragment dashboards use `label = 'fragment'` from dataset_labels. Using name matching may return different results.
+21. **Username auction bids ≠ revenue.** Opcode `1178019994` captures ALL bids including losing ones (which are refunded). For actual revenue, use `ton.nft_events WHERE type='sale'` with Fragment marketplace address.
 
 ## ALL_LABELS + REAL_USERS
 

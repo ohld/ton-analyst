@@ -93,3 +93,71 @@ From `dataset_labels` where `category='merchant'`.
 - Fragment takes 5% marketplace fee (visible in `marketplace_fee` column)
 - Telemint contracts: github.com/TelegramMessenger/telemint
 - Primary vs secondary: use `ROW_NUMBER() OVER(PARTITION BY nft_item_address ORDER BY block_time) = 1` for first sale
+
+## Fragment Payment Classification
+
+Fragment is Telegram's on-chain marketplace. Use `label = 'fragment'` from `dataset_labels` to find Fragment wallet addresses. Payments are classified by `comment` patterns and `opcode` values in `ton.messages`.
+
+### Fragment Address Discovery
+
+```sql
+-- Standard join pattern used by all major Fragment dashboards
+INNER JOIN dune.ton_foundation.dataset_labels lbl
+    ON lbl.address = m.destination AND lbl.label = 'fragment'
+```
+
+### Inflow Categories (user → Fragment)
+
+| Priority | Pattern | Category | Notes |
+|----------|---------|----------|-------|
+| 1 | `comment LIKE '%Telegram Stars%Ref#%'` | Stars Purchase | Largest category. Users buying Stars with TON |
+| 2 | `comment LIKE '%Telegram Ad account top up%Ref#%'` | TG Ads | 2nd largest. Channel owners funding ad campaigns |
+| 3 | `comment LIKE '%Telegram Premium%Ref#%'` | TG Premium | Premium subscription purchases |
+| 4 | `comment LIKE '%Telegram account top up%Ref#%'` | TG Gift Market | Top-up to buy gifts in official TG embedded gift market (secondary sales) |
+| 5 | `comment LIKE '%Telegram Gateway%Ref#%'` | TG Gateway | Telegram SMS auth service (core.telegram.org/gateway) |
+| 6 | `comment LIKE '%Prepaid Subscription%Ref#%'` | TG Premium Giveaway | Buying premium subscriptions for channel giveaways |
+| 7 | `comment LIKE '%Bot Username Upgrade Fee%'` | Bot Username Fee | Standard bot username upgrade |
+| 8 | `comment LIKE '%Fee to upgrade%for bots%Ref#%'` | Bot Custom Domain Fee | Assigning custom (non-"bot") username to a bot |
+| 9 | `opcode = 1178019994` | Username Auction Bids | **Includes ALL bids, not just winners.** Losing bids are returned. Volume ≠ revenue |
+| 10 | `opcode = 923790417` | Gift NFT Mint (gas) | Minting offchain Telegram Gift as onchain NFT. High tx count, tiny TON (gas only) |
+| 11 | Source = Fragment (`label = 'fragment'`) | Fragment Rebalancing | **Exclude from analysis** — operational inter-wallet transfers |
+| 12 | Source = `0:8C39...B47AB3` | Topups from Telegram Treasury | Telegram funding Fragment with large TON chunks (6-10M per tx) |
+
+### Outflow Categories (Fragment → user)
+
+| Pattern | Category | Notes |
+|---------|----------|-------|
+| `comment LIKE '%Reward from Telegram bot%Ref#%'` | Bot Rewards | Stars revenue share to bot developers (~3,200 unique bots) |
+| `comment LIKE '%Reward from Telegram channel%Ref#%'` | Channel Rewards | Ad revenue share to channel owners (~37K channels) |
+| `comment LIKE '%Reward from Telegram user%Ref#%'` | User Stars Rewards | Stars earned by individual users (viewers gifting Stars to creators) |
+
+### Key Fragment Addresses
+
+| Address | Role |
+|---------|------|
+| `0:8C397C43F9FF0B49659B5D0A302B1A93AF7CCC63E5F5C0C4F25A9DC1F8B47AB3` | Telegram Treasury wallet that funds Fragment |
+| `0:158136239ADB15DD59DF90C641F9EFD312CFEB8664F218F4C3E5FCE9D95E6C07` | Fragment Gift Operations (mint/bridge/burn NFTs) |
+
+### Gift NFT Operations
+
+The Gift Operations address (`0:158136...`) handles three flows:
+- **Transfers TO this address** = moving an on-chain gift back to Telegram (onchain → offchain)
+- **Mints FROM this address** = minting a gift that was never on-chain before
+- **Transfers FROM this address** = moving a previously minted gift from TG to an on-chain address
+
+Use `dune.rdmcd.result_gifts_collection_addresses` (109 curated collections) for Gift NFT classification.
+
+Reference query for Gift activity: https://dune.com/queries/5537166/9018696
+
+### Username Auction Nuances
+
+Opcode `1178019994` captures ALL auction bids. Losing bids are refunded when the auction ends. **Bid volume ≠ auction revenue.** For actual completed auction revenue, use:
+```sql
+SELECT * FROM ton.nft_events
+WHERE type = 'sale' AND sale_type = 'auction'
+AND marketplace_address = UPPER('0:408DA3B28B6C065A593E10391269BAAA9C5F8CAEBC0C69D9F0AABBAB2A99256B')
+```
+
+### Reference Dashboard Query
+
+Fragment inflows by type (monthly, stacked area): https://dune.com/queries/6836467
