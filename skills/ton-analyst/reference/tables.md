@@ -101,9 +101,13 @@ Daily token prices. **Decimals already incorporated** — no manual conversion.
 |--------|------|-------|
 | timestamp | timestamp | Start of day UTC |
 | token_address | varchar | Raw format |
-| price_usd | double | USD price (decimals pre-incorporated) |
-| price_ton | double | TON price |
+| price_usd | double | USD price **per raw unit** (e.g. per nanoTON for TON) |
+| price_ton | double | TON price per raw unit |
 | asset_type | varchar | `'Jetton'`, `'DEX LP'`, `'SLP'` |
+
+**CRITICAL: price_usd is per RAW unit.** For TON: `price_usd ≈ 1.3e-9` (= ~$1.30 per 1e9 nanoTON). To get USD value: `raw_amount * price_usd`. Do NOT divide raw_amount by 1e9 first — that double-divides and gives 1e9x too small results.
+
+Example: `sale_price * price_usd` = correct USD. `sale_price / 1e9 * price_usd` = WRONG (1e9x too small).
 
 **End-of-month price:**
 ```sql
@@ -186,6 +190,62 @@ Staking flows for nominator pools.
 | user_address | string | |
 | value | bigint | Nanotons |
 | direction | string | `'in'` (deposit) or `'out'` (withdrawal) |
+
+## ton.nft_events
+
+NFT transfer, sale, mint, bid events.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| block_date | date | Partition key |
+| block_time | timestamp | |
+| type | varchar | `'mint'`, `'sale'`, `'bid'`, `'transfer'`, `'put_on_sale'`, `'cancel_sale'` |
+| nft_item_address | varchar | Individual NFT address |
+| nft_item_index | varchar | Deterministic index |
+| collection_address | varchar | Parent collection |
+| owner_address | varchar | New owner after event |
+| prev_owner | varchar | Previous owner |
+| sale_price | decimal(38,0) | In nanoTON (divide by 1e9 for display, but use `* price_usd` for USD) |
+| sale_type | varchar | `'auction'` or `'sale'` (fixed price) |
+| marketplace_address | varchar | Which marketplace handled the sale |
+| marketplace_fee | decimal(38,0) | Fee in nanoTON |
+| payment_asset | varchar | Usually `'TON'` |
+| content_onchain | varchar | JSON with auction params (bid, beneficiar, etc.) |
+| tx_hash | varchar | |
+| trace_id | varchar | |
+
+**Volume calculation:** `WHERE type = 'sale'` captures both primary (Fragment auctions) and secondary sales. Use `sale_price * price_usd` for USD conversion (price_usd is per raw unit).
+
+## ton.nft_metadata
+
+NFT and collection metadata.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| type | varchar | `'item'` or `'collection'` |
+| address | varchar | NFT item or collection address |
+| parent_address | varchar | Collection address (for items) |
+| name | varchar | Human-readable name |
+| description | varchar | |
+| image | varchar | URL |
+| attributes | varchar | JSON traits |
+
+## dune.rdmcd.result_gifts_collection_addresses
+
+109 curated Telegram Gift collection addresses (maintained by @rdmcd).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| col_address | varchar | Collection address |
+| nft_address | varchar | Example NFT item |
+| item_name | varchar | e.g. 'Toy Bear' |
+| collection_name | varchar | e.g. 'Toy Bears' |
+
+## dune.telegram.stickers / dune.telegram.stickers_sales
+
+Off-chain data uploaded by Telegram team.
+- `stickers` — primary sales data (release_time, price, sold count)
+- `stickers_sales` — marketplace sales (platform, block_time, amount_ton, amount_usd)
 
 ## Decoded project tables
 

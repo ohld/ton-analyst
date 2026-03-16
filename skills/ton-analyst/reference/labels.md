@@ -67,3 +67,29 @@ Many DeFi pool contracts are NOT in `dataset_labels`. Build DEFI_LABELS CTE from
 `result_sybil_wallets` — ~153K addresses flagged as sybil/bot.
 
 **Sybil wallets materialized view:** https://dune.com/queries/5206440 — how sybil addresses were identified.
+
+## NFT Marketplace Addresses
+
+From `dataset_labels` where `category='merchant'`.
+
+| Marketplace | Address | sale_type | Notes |
+|-------------|---------|-----------|-------|
+| Fragment | `0:408DA3B28B6C065A593E10391269BAAA9C5F8CAEBC0C69D9F0AABBAB2A99256B` | auction | Primary auctions + resale auctions. 5% fee. |
+| Getgems | `0:584EE61B2DFF0837116D0FCB5078D93964BCBE9C05FD6A141B1BFCA5D6A43E18` | sale/auction | Main secondary marketplace |
+| Marketapp | `0:9A9CB80ADFBD1662F5108766D73355AC2C03304FDA1D25A479670E34EFCD72B3` | sale | NFT aggregator (marketapp.ws) |
+
+## Telegram Official NFT Collections
+
+| Collection | Address | Notes |
+|------------|---------|-------|
+| Telegram Usernames | `0:80D78A35F955A14B679FAA887FF4CD5BFC0F43B4A4EEA2A7E6927F3701B273C2` | @handles. Still actively minted via Fragment auctions. |
+| Anonymous Telegram Numbers | `0:0E41DC1DC3C9067ED24248580E12B3359818D83DEE0304FABCF80845EAFAFDB2` | +888 numbers. All 136K minted Dec 2022. Now 100% secondary market. |
+| TON DNS Domains | `0:B774D95EB20543F186C06B371AB88AD704F7E256130CAF96189368A7D0CB6CCF` | .ton domains |
+
+## Fragment Sale Mechanics
+
+- Fragment primary sales ARE captured in `ton.nft_events` as `type='sale'`, `sale_type='auction'`
+- Mint events (`type='mint'`) have no sale_price — sale fires separately
+- Fragment takes 5% marketplace fee (visible in `marketplace_fee` column)
+- Telemint contracts: github.com/TelegramMessenger/telemint
+- Primary vs secondary: use `ROW_NUMBER() OVER(PARTITION BY nft_item_address ORDER BY block_time) = 1` for first sale

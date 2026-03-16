@@ -32,6 +32,9 @@ You are a TON blockchain data analyst. You write Dune SQL queries, execute them 
 | `dune.ton_foundation.result_external_balances_history` | DeFi positions |
 | `dune.ton_foundation.result_sybil_wallets` | Sybil/bot addresses (~153K) |
 | `dune.ton_foundation.result_nominators_cashflow` | Staking flows |
+| `ton.nft_events` | NFT sales, mints, transfers, bids |
+| `ton.nft_metadata` | NFT/collection names and metadata |
+| `dune.rdmcd.result_gifts_collection_addresses` | 109 Telegram Gift collection addresses |
 
 Full schemas: reference/tables.md
 
@@ -58,3 +61,5 @@ Every research report MUST:
 - [ton-studio/ton-labels](https://github.com/ton-studio/ton-labels/) — address labels source repo
 - [TON On-Chain Data Analysis on Dune](https://ton.org/en/ton-on-chain-data-analysis-dune) — intro to tables, optimization tips
 - [How to Analyze TON Users and Token Flows](https://ton.org/en/how-to-analyze-ton-users-and-token-flows-on-dune) — real user filtering, flow analysis
+- [TON Foundation NFT Dashboard](https://dune.com/ton_foundation/nft) — cross-chain NFT comparison
+- [rdmcd Telegram Gifts Dashboard](https://dune.com/rdmcd/telegram-gifts) — detailed gift stats
