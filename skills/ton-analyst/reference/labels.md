@@ -118,10 +118,12 @@ INNER JOIN dune.ton_foundation.dataset_labels lbl
 | 6 | `comment LIKE '%Prepaid Subscription%Ref#%'` | TG Premium Giveaway | Buying premium subscriptions for channel giveaways |
 | 7 | `comment LIKE '%Bot Username Upgrade Fee%'` | Bot Username Fee | Standard bot username upgrade |
 | 8 | `comment LIKE '%Fee to upgrade%for bots%Ref#%'` | Bot Custom Domain Fee | Assigning custom (non-"bot") username to a bot |
-| 9 | `opcode = 1178019994` | Username Auction Bids | **Includes ALL bids, not just winners.** Losing bids are returned. Volume ≠ revenue |
-| 10 | `opcode = 923790417` | Gift NFT Mint (gas) | Minting offchain Telegram Gift as onchain NFT. High tx count, tiny TON (gas only) |
-| 11 | Source = Fragment (`label = 'fragment'`) | Fragment Rebalancing | **Exclude from analysis** — operational inter-wallet transfers |
-| 12 | Source = `0:8C39...B47AB3` | Topups from Telegram Treasury | Telegram funding Fragment with large TON chunks (6-10M per tx) |
+| 9 | `comment LIKE '%Auction proceeds%'` | Username Auction Revenue | Fragment's fee from completed username auctions. Real revenue, not bids. |
+| 10 | `comment LIKE '%Fee for making an offer%'` | NFT Offer Fee | Fee charged for placing an offer on a username NFT |
+| 11 | `opcode = 1178019994` | Username Auction Bids | **Includes ALL bids, not just winners.** Losing bids are returned. Volume ≠ revenue |
+| 12 | `opcode = 923790417` | TG Gift NFT Mint | Minting Telegram Gift as on-chain NFT. **Includes gift value, NOT just gas.** 95% of TON volume is in txs > 100 TON |
+| 13 | Source = Fragment (`label = 'fragment'`) | Fragment Rebalancing | **Exclude from analysis** — operational inter-wallet transfers |
+| 14 | Source = `0:8C39...B47AB3` | Topups from Telegram Treasury | Telegram funding Fragment with large TON chunks (6-10M per tx) |
 
 ### Outflow Categories (Fragment → user)
 

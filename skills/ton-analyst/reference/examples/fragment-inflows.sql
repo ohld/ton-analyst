@@ -6,8 +6,10 @@
 -- Categories:
 --   Stars Purchase, TG Ads, TG Premium, TG Gift Market, TG Gateway,
 --   TG Premium Giveaway, Bot Username Fee, Bot Custom Domain Fee,
---   Username Auction Bids (includes ALL bids, losers refunded — volume ≠ revenue),
---   Gift NFT Mint (gas only), Topups from Telegram Treasury, Other
+--   Username Auction Revenue (Fragment's fee from completed auctions),
+--   NFT Offer Fee, Username Auction Bids (ALL bids, losers refunded — volume ≠ revenue),
+--   TG Gift NFT Mint (includes gift value, NOT just gas),
+--   Topups from Telegram Treasury, Other
 
 SELECT
     date_trunc('month', m.block_date) AS month,
@@ -20,8 +22,10 @@ SELECT
         WHEN m.comment LIKE '%Prepaid Subscription%Ref#%' THEN 'TG Premium Giveaway'
         WHEN m.comment LIKE '%Bot Username Upgrade Fee%' THEN 'Bot Username Fee'
         WHEN m.comment LIKE '%Fee to upgrade%for bots%Ref#%' THEN 'Bot Custom Domain Fee'
+        WHEN m.comment LIKE '%Auction proceeds%' THEN 'Username Auction Revenue'
+        WHEN m.comment LIKE '%Fee for making an offer%' THEN 'NFT Offer Fee'
         WHEN m.opcode = 1178019994 THEN 'Username Auction Bids'
-        WHEN m.opcode = 923790417 THEN 'Gift NFT Mint (gas)'
+        WHEN m.opcode = 923790417 THEN 'TG Gift NFT Mint'
         WHEN m.source = UPPER('0:8c397c43f9ff0b49659b5d0a302b1a93af7ccc63e5f5c0c4f25a9dc1f8b47ab3')
             THEN 'Topups from Telegram Treasury'
         ELSE 'Other'
