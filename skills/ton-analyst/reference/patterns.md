@@ -21,6 +21,10 @@ CTEs, classification logic, and conventions for TON Dune queries.
 15. **Complex queries timeout on Dune.** Queries with 3+ heavy CTE joins (DEFI_LABELS + LABELS + accounts + messages) often return empty results silently. Split into sequential simpler queries: first get addresses, then classify separately.
 16. **`uninit` accounts can hold TON.** Accounts with `status = 'uninit'` and no `code_hash` can still hold large balances — "parked" funds with no deployed contract. Don't filter them out in flow analysis.
 17. **Interface detection complements code_hash.** For staking pools, `validation_nominator_pool` interface catches pools that code_hash matching misses (e.g. masterchain pools). Prefer interfaces when available, fall back to code_hash for unrecognized contracts.
+18. **`LEFT()` is a reserved keyword in Trino.** Use `SUBSTR(comment, 1, 80)` instead of `LEFT(comment, 80)`. Trino treats LEFT as a join keyword.
+19. **CEX attribution must use net flow, capped at spending.** When analyzing "what % funded by CEX": `min(spending, max(0, cex_in - cex_out)) / spending`. Never use gross CEX inflows — inflates if user received more than they spent. See examples/fragment-inflows.sql.
+20. **Fragment `label = 'fragment'` not `name LIKE '%ragment%'`.** All major Fragment dashboards use `label = 'fragment'` from dataset_labels. Using name matching may return different results.
+21. **Username auction bids ≠ revenue.** Opcode `1178019994` captures ALL bids including losing ones (which are refunded). For actual revenue, use `ton.nft_events WHERE type='sale'` with Fragment marketplace address.
 
 ## ALL_LABELS + REAL_USERS
 
@@ -190,6 +194,50 @@ FROM ton.accounts
 WHERE balance > 0 AND code_hash IS NOT NULL
   AND address NOT IN (SELECT address FROM dune.ton_foundation.dataset_labels)
 GROUP BY 1 ORDER BY ton DESC LIMIT 50
+```
+
+## NFT Volume Calculation
+
+```sql
+-- Total NFT sales volume (includes Fragment primary + all secondary)
+, NFT_SALES AS (
+    SELECT
+        DATE_TRUNC('month', block_date) AS block_date,
+        collection_address,
+        SUM(sale_price) / 1e9 AS volume_ton,
+        SUM(sale_price * P.price_usd) AS volume_usd, -- price_usd is per raw unit
+        COUNT(*) AS sales,
+        COUNT(DISTINCT owner_address) AS unique_buyers
+    FROM ton.nft_events E
+    LEFT JOIN (
+        SELECT timestamp AS block_date, price_usd
+        FROM ton.prices_daily
+        WHERE token_address LIKE '0:000000000%'
+    ) P ON P.block_date = E.block_date
+    WHERE E.type = 'sale'
+      AND E.block_date >= DATE '...'
+    GROUP BY 1, 2
+)
+```
+
+## NFT Asset Classification CTE
+
+```sql
+, NFT_CLASSIFIED AS (
+    SELECT *,
+        CASE
+            WHEN collection_address = '0:80D78A35F955A14B679FAA887FF4CD5BFC0F43B4A4EEA2A7E6927F3701B273C2' THEN 'Usernames'
+            WHEN collection_address = '0:0E41DC1DC3C9067ED24248580E12B3359818D83DEE0304FABCF80845EAFAFDB2' THEN 'Numbers'
+            WHEN collection_address IN (
+                '0:B774D95EB20543F186C06B371AB88AD704F7E256130CAF96189368A7D0CB6CCF',
+                '0:E1955ABA7249F23E4FD2086654A176516D98B134E0DF701302677C037C358B17'
+            ) THEN 'DNS'
+            WHEN collection_address IN (SELECT col_address FROM dune.rdmcd.result_gifts_collection_addresses) THEN 'Gifts'
+            ELSE 'Other NFTs'
+        END AS asset_class
+    FROM ton.nft_events
+    WHERE type = 'sale'
+)
 ```
 
 ## SQL Conventions
