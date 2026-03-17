@@ -214,7 +214,9 @@ NFT transfer, sale, mint, bid events.
 | tx_hash | varchar | |
 | trace_id | varchar | |
 
-**Volume calculation:** `WHERE type = 'sale'` captures both primary (Fragment auctions) and secondary sales. Use `sale_price * price_usd` for USD conversion (price_usd is per raw unit).
+**Volume calculation:** `WHERE type = 'sale' AND payment_asset = 'TON'` for TON-denominated sales. Use `sale_price * price_usd` for USD conversion (price_usd is per raw unit).
+
+**CRITICAL: always filter `payment_asset = 'TON'`** when using TON price for conversion. Some NFTs are sold for jettons (DOGS, USDT, etc.) — their `sale_price` is in that jetton's raw units, NOT nanoTON. Multiplying by TON's price gives wildly wrong results (e.g. $2K of real volume inflated to $114M).
 
 ## ton.nft_metadata
 
