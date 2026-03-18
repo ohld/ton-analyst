@@ -1,0 +1,89 @@
+name: Validate skill
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check manifest exists and is valid JSON
+        run: |
+          echo "Checking marketplace.json..."
+          cat .claude-plugin/marketplace.json | python3 -m json.tool > /dev/null
+          echo "OK: valid JSON"
+
+      - name: Check required files exist
+        run: |
+          files=(
+            "skills/ton-analyst/SKILL.md"
+            "README.md"
+            "LICENSE"
+            "CHANGELOG.md"
+          )
+          for f in "${files[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "MISSING: $f"
+              exit 1
+            fi
+            echo "OK: $f"
+          done
+
+      - name: Check reference files exist
+        run: |
+          refs=(
+            "skills/ton-analyst/reference/tables.md"
+            "skills/ton-analyst/reference/labels.md"
+            "skills/ton-analyst/reference/patterns.md"
+            "skills/ton-analyst/reference/dune-api.md"
+            "skills/ton-analyst/reference/ton-blockchain.md"
+            "skills/ton-analyst/reference/tonapi.md"
+            "skills/ton-analyst/reference/examples/README.md"
+          )
+          for f in "${refs[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "MISSING: $f"
+              exit 1
+            fi
+            echo "OK: $f"
+          done
+
+      - name: Check SQL examples are non-empty
+        run: |
+          count=0
+          for f in skills/ton-analyst/reference/examples/*.sql; do
+            if [ ! -s "$f" ]; then
+              echo "EMPTY: $f"
+              exit 1
+            fi
+            count=$((count + 1))
+            echo "OK: $f ($(wc -l < "$f") lines)"
+          done
+          echo "Total SQL examples: $count"
+          if [ "$count" -lt 1 ]; then
+            echo "ERROR: No SQL examples found"
+            exit 1
+          fi
+
+      - name: Validate version consistency
+        run: |
+          manifest_ver=$(python3 -c "import json; print(json.load(open('.claude-plugin/marketplace.json'))['plugins'][0]['version'])")
+          echo "Manifest version: $manifest_ver"
+          if [ -z "$manifest_ver" ]; then
+            echo "ERROR: No version in marketplace.json"
+            exit 1
+          fi
+          echo "OK: version $manifest_ver"
+
+      - name: Check setup script is executable
+        run: |
+          if [ ! -x "setup" ]; then
+            echo "WARNING: setup script is not executable"
+            exit 1
+          fi
+          echo "OK: setup is executable"

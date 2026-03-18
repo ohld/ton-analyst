@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SKILL_NAME="ton-analyst"
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+SKILL_SRC="$REPO_DIR/skills/$SKILL_NAME"
+SKILL_DST="$HOME/.claude/skills/$SKILL_NAME"
+
+echo "==> Setting up $SKILL_NAME"
+
+# 1. Validate skill source exists
+if [ ! -f "$SKILL_SRC/SKILL.md" ]; then
+  echo "ERROR: $SKILL_SRC/SKILL.md not found. Are you in the right repo?"
+  exit 1
+fi
+
+# 2. Create symlink
+mkdir -p "$HOME/.claude/skills"
+
+if [ -L "$SKILL_DST" ]; then
+  current_target="$(readlink "$SKILL_DST")"
+  if [ "$current_target" = "$SKILL_SRC" ]; then
+    echo "    Symlink already correct: $SKILL_DST -> $SKILL_SRC"
+  else
+    echo "    Updating symlink: $current_target -> $SKILL_SRC"
+    ln -sfn "$SKILL_SRC" "$SKILL_DST"
+  fi
+elif [ -e "$SKILL_DST" ]; then
+  echo "WARNING: $SKILL_DST exists but is not a symlink. Skipping."
+  echo "         Remove it manually if you want setup to manage it."
+else
+  ln -s "$SKILL_SRC" "$SKILL_DST"
+  echo "    Created symlink: $SKILL_DST -> $SKILL_SRC"
+fi
+
+# 3. Check optional env vars
+echo ""
+echo "==> Checking environment (optional)"
+
+if [ -n "${DUNE_API_KEY:-}" ]; then
+  echo "    DUNE_API_KEY: set"
+else
+  echo "    DUNE_API_KEY: not set (needed for query execution, not required for SQL generation)"
+fi
+
+if [ -n "${TONAPI_KEY:-}" ]; then
+  echo "    TONAPI_KEY:   set"
+else
+  echo "    TONAPI_KEY:   not set (needed for TONAPI cross-verification, free tier available)"
+fi
+
+echo ""
+echo "==> Done. Open Claude Code and ask a TON question to verify."
