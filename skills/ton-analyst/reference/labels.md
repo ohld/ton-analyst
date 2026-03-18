@@ -129,19 +129,20 @@ INNER JOIN dune.ton_foundation.dataset_labels lbl
 
 | Priority | Pattern | Category | Notes |
 |----------|---------|----------|-------|
-| 1 | `comment LIKE '%Reward from Telegram bot%Ref#%'` | Bot Rewards | Stars revenue share to bot developers (~3,200 unique bots). Largest outflow. |
-| 2 | `comment LIKE '%Reward from Telegram channel%Ref#%'` | Channel Rewards | Ad revenue share to channel owners (~37K channels) |
-| 3 | `comment LIKE '%Reward from Telegram user%Ref#%'` | User Stars Rewards | Stars earned by individual users (viewers gifting Stars to creators) |
-| 4 | `comment LIKE '%Auction proceeds%'` | Auction Proceeds (to seller) | Comment-based auction payouts to username sellers |
-| 5 | `comment LIKE '%Telegram Stars%Ref#%'` | Stars Refund | Refund of Stars purchase |
-| 6 | `comment LIKE '%Telegram Premium%'` | Premium Refund | |
-| 7 | `comment LIKE '%Telegram Ad account%'` | Ad Account Refund | |
-| 8 | `comment LIKE '%Telegram account top up%'` | Gift Market Refund | |
-| 9 | `opcode = 697974293` | Username Auction Settlement | TON sent to individual Telemint NFT auction contracts (`nft_item` + `teleitem` interface). Contract then forwards to seller + refunds losing bidders. If dest balance > 1 TON → auction still active. |
-| 10 | `opcode = 1178019995` | Auction Collection Trigger (gas) | 0.06 TON sent to `nft_collection` contracts. Triggers auction logic at collection level. ~109 unique collections. |
-| 11 | `opcode = 1607220500` | NFT Item Notification (gas) | 0.1 TON sent to individual `nft_item` + `teleitem` contracts. Pings/updates NFT items. ~23K unique items. |
-| 12 | Dest = `0:8C39...B47AB3` | Fragment → Telegram Treasury | Fragment returning TON to Telegram. Occasional large transfers (e.g. 37.2M in Dec 2025). |
-| 13 | Dest = Fragment (`label = 'fragment'`) | Fragment Rebalancing | **Exclude from analysis** — operational inter-wallet transfers |
+| 1 | `comment LIKE '%Reward from Telegram bot%Ref#%'` | Bot Stars Cashout | Stars revenue share to bot developers. Largest outflow. |
+| 2 | `comment LIKE '%Reward from Telegram channel%Ref#%'` | Channel Stars Cashout | Ad revenue share to channel owners |
+| 3 | `comment LIKE '%Reward from Telegram user%Ref#%'` | User Stars Cashout | Stars earned by individual users (creators receiving Stars from viewers) |
+| 4 | `comment LIKE '%Telegram Stars%Ref#%'` | Stars Refund | |
+| 5 | `comment LIKE '%Telegram Premium%'` | Premium Refund | |
+| 6 | `comment LIKE '%Telegram Ad account%'` | Ad Account Refund | |
+| 7 | `comment LIKE '%Telegram account top up%'` | Gift Market Refund | |
+| 8 | `opcode = 697974293` | Username Auction Bid | TON sent to Telemint NFT auction contracts (`nft_item` + `teleitem`). Includes active bids (dest balance > 1 TON) and settlements. |
+| 9 | Dest = `0:8C39...B47AB3` | Fragment → Telegram Treasury | Fragment returning TON to Telegram. Occasional large transfers (e.g. 37.2M in Dec 2025). |
+| 10 | Dest = Fragment (`label = 'fragment'`) | Fragment Rebalancing | **Exclude from analysis** — operational inter-wallet transfers |
+
+Gas opcodes (negligible TON, safe to merge into "Other"):
+- `opcode = 1178019995` — Auction collection trigger, dest=`nft_collection`, 0.06 TON each
+- `opcode = 1607220500` — NFT item notification, dest=`nft_item`+`teleitem`, 0.1 TON each
 
 Reference query for Fragment outflows: https://dune.com/queries/6845207
 
