@@ -26,7 +26,7 @@ SELECT
         WHEN m.comment LIKE '%Fee for making an offer%' THEN 'NFT Offer Fee'
         WHEN m.opcode = 1178019994 THEN 'Username Auction Bids'
         WHEN m.opcode = 923790417 THEN 'TG Gift NFT Mint'
-        WHEN m.source = UPPER('0:8c397c43f9ff0b49659b5d0a302b1a93af7ccc63e5f5c0c4f25a9dc1f8b47ab3')
+        WHEN m.source = '0:8C397C43F9FF0B49659B5D0A302B1A93AF7CCC63E5F5C0C4F25A9DC1F8B47AB3'
             THEN 'Topups from Telegram Treasury'
         ELSE 'Other'
     END AS payment_type,
