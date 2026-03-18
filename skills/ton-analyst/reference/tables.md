@@ -118,14 +118,48 @@ FROM ton.prices_daily GROUP BY 1, 2
 
 ## ton.dex_trades
 
-DEX swap data.
+DEX swap data. Each row = one swap.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | block_date | date | Partition key |
-| trader_address | string | |
+| block_time | timestamp | |
+| trader_address | string | Wallet that initiated the swap |
+| token_sold_address | string | Token being sold (raw address) |
+| token_bought_address | string | Token being bought (raw address) |
+| amount_sold_raw | bigint | Raw amount sold (check token decimals) |
+| amount_bought_raw | bigint | Raw amount bought |
+| volume_ton | double | Trade volume in TON |
 | volume_usd | double | Trade volume in USD |
+| pool_address | string | DEX pool contract address |
+| router_address | string | DEX router contract |
 | project | string | `'ston.fi'`, `'dedust'`, etc. |
+| project_type | string | `'dex'` |
+| trace_id | string | For tonviewer links |
+| tx_hash | string | |
+| referral_address | string | Referral (if any) |
+| version | int | |
+
+**TON token addresses in dex_trades** (use for filtering TON sells/buys):
+```sql
+-- "Selling TON" = token_sold_address is one of these
+token_sold_address IN (
+    '0:0000000000000000000000000000000000000000000000000000000000000000',  -- native TON
+    '0:671963027F7F85659AB55B821671688601CDCF1EE674FC7FBBB1A776A18D34A3',  -- pTON (proxy, largest volume)
+    UPPER('0:8cdc1d7640ad5ee326527fc1ad0514f468b30dc84b0173f0e155f451b4e11f7c'),  -- another proxy TON
+    '0:D0A1CE4CDC187C79615EA618BD6C29617AF7A56D966F5A192A768F345EE63FD2'   -- wTON
+)
+```
+
+**USDT address:** `0:B113A994B5024A16719F69139328EB759596C38A25F59028B146FECDC3621DFE`
+
+**Selling TON for stables (sell pressure):**
+```sql
+WHERE token_sold_address IN (/*TON addresses above*/)
+AND token_bought_address = '0:B113A994B5024A16719F69139328EB759596C38A25F59028B146FECDC3621DFE'  -- USDT
+```
+
+**NO `token_sold_symbol` column exists.** Use token addresses directly. Use `dune.ton_foundation.result_dex_pools_latest` for pool analysis.
 
 ## ton.latest_balances
 
