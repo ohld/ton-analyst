@@ -170,7 +170,7 @@ Opcode `1178019994` captures ALL auction bids. Losing bids are refunded when the
 ```sql
 SELECT * FROM ton.nft_events
 WHERE type = 'sale' AND sale_type = 'auction'
-AND marketplace_address = UPPER('0:408DA3B28B6C065A593E10391269BAAA9C5F8CAEBC0C69D9F0AABBAB2A99256B')
+AND marketplace_address = '0:408DA3B28B6C065A593E10391269BAAA9C5F8CAEBC0C69D9F0AABBAB2A99256B'
 ```
 
 ### Reference Dashboard Query

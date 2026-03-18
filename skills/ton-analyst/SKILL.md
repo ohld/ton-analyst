@@ -38,6 +38,13 @@ You are a TON blockchain data analyst. You write Dune SQL queries, execute them 
 
 Full schemas: reference/tables.md
 
+## Query Conventions
+
+- Every query starts with `-- created with github.com/ohld/ton-analyst`
+- Never use `UPPER('0:...')` — write addresses in uppercase directly
+- User wallet addresses: `ton_address_raw_to_user_friendly(addr, false)` — non-bounceable UQ prefix
+- Embed transaction hyperlinks inside datetime columns for interactive dashboards
+
 ## Report Format
 
 Every research report MUST:

@@ -17,7 +17,7 @@ CTEs, classification logic, and conventions for TON Dune queries.
 11. **Change-log tables:** No row = no change. Use `MAX_BY` for snapshots — see FORWARD_FILL below.
 12. **Asset naming:** `'TON'` in balances_history vs `'0:000...000'` in external_balances — normalize when merging.
 13. **`code_hash` classifies unlabeled contracts.** Nominator pools, vesting, multisig — all identifiable by code_hash. See Code Hash Reference below.
-14. **All addresses in Dune are RAW UPPERCASE.** Always use `UPPER('0:b113a994...')` in WHERE clauses, or write addresses in uppercase directly.
+14. **All addresses in Dune are RAW UPPERCASE.** Always write addresses in uppercase directly (`'0:B113A994...'`). Never use `UPPER('0:b113a994...')` — just capitalize the address in the SQL.
 15. **Complex queries timeout on Dune.** Queries with 3+ heavy CTE joins (DEFI_LABELS + LABELS + accounts + messages) often return empty results silently. Split into sequential simpler queries: first get addresses, then classify separately.
 16. **`uninit` accounts can hold TON.** Accounts with `status = 'uninit'` and no `code_hash` can still hold large balances — "parked" funds with no deployed contract. Don't filter them out in flow analysis.
 17. **Interface detection complements code_hash.** For staking pools, `validation_nominator_pool` interface catches pools that code_hash matching misses (e.g. masterchain pools). Prefer interfaces when available, fall back to code_hash for unrecognized contracts.
@@ -25,6 +25,9 @@ CTEs, classification logic, and conventions for TON Dune queries.
 19. **CEX attribution must use net flow, capped at spending.** When analyzing "what % funded by CEX": `min(spending, max(0, cex_in - cex_out)) / spending`. Never use gross CEX inflows — inflates if user received more than they spent. See examples/fragment-inflows.sql.
 20. **Fragment `label = 'fragment'` not `name LIKE '%ragment%'`.** All major Fragment dashboards use `label = 'fragment'` from dataset_labels. Using name matching may return different results.
 21. **Username auction bids ≠ revenue.** Opcode `1178019994` captures ALL bids including losing ones (which are refunded). For actual revenue, use `ton.nft_events WHERE type='sale'` with Fragment marketplace address.
+22. **`nft_metadata.name` already includes `@` for usernames.** Do NOT prepend another `@` — you'll get `@@username`. Just use `N.username` directly.
+23. **`sale_type='auction'` in nft_events = bids, not final sales.** Even with `type='sale'`, auction rows have NULL `trace_id`/`tx_hash` and the same NFT can appear multiple times at different prices (= individual bids). Use `sale_type='sale'` for verified completed fixed-price sales with trace_id. See examples/fragment-username-sales.sql.
+24. **User wallet addresses: use non-bounceable (UQ).** `ton_address_raw_to_user_friendly(addr, false)` for user wallets — UQ prefix is the standard for displaying wallet addresses of real users. Bounceable (EQ) is for smart contracts.
 
 ## ALL_LABELS + REAL_USERS
 
@@ -242,13 +245,15 @@ GROUP BY 1 ORDER BY ton DESC LIMIT 50
 
 ## SQL Conventions
 
+- **Header comment:** Every query starts with `-- created with github.com/ohld/ton-analyst`
 - **CTE naming:** UPPER_SNAKE_CASE (`REAL_USERS`, `ALL_LABELS`)
 - **WHERE:** `WHERE 1=1` then `AND` for each filter (easy to comment/uncomment)
 - **Partition pruning:** Always filter `block_date` early — critical for performance
 - **Message filtering:** `direction = 'in' AND NOT bounced`
 - **TON conversion:** `/ 1e9` for nanoton to TON
-- **Addresses:** Raw format (`0:...`) everywhere. Friendly (UQ/EQ) only via `ton_address_raw_to_user_friendly()`
-- **Clickable links in Dune:** `GET_HREF(url, display_text)`
+- **Addresses:** Raw UPPERCASE format (`'0:B113A994...'`). Never use `UPPER()` — capitalize directly. Friendly (UQ/EQ) only via `ton_address_raw_to_user_friendly()`
+- **User wallet display:** `ton_address_raw_to_user_friendly(addr, false)` — non-bounceable UQ for user wallets
+- **Clickable links in Dune:** `GET_HREF(url, display_text)` — embed tx links in datetime columns for interactive dashboards
 - **Engine:** Presto SQL (Dune) — Trino syntax
 - **Array filtering:** `cardinality(FILTER(interfaces, i -> regexp_like(i, '^wallet_.*'))) > 0`
 
@@ -256,18 +261,26 @@ GROUP BY 1 ORDER BY ton DESC LIMIT 50
 
 Use `GET_HREF(url, display_text)` to make clickable links in Dune table visualizations. Convert base64 hashes to hex for tonviewer URLs: `LOWER(TO_HEX(FROM_BASE64(hash)))`. Works for both `trace_id` and `deployment_tx_hash`.
 
-```sql
--- Transaction/trace link (prefer trace_id over tx_hash — tonviewer shows full trace)
-GET_HREF(
-    'https://tonviewer.com/transaction/' || LOWER(TO_HEX(FROM_BASE64(m.trace_id))),
-    DATE_FORMAT(m.block_time, '%Y-%m-%d %H:%i')
-) AS transaction
+**Best practice:** embed transaction links inside datetime columns — makes dashboards interactive without adding extra columns.
 
--- Address link (truncated friendly address as display text)
+```sql
+-- Transaction link embedded in datetime (preferred — interactive + compact)
+GET_HREF(
+    'https://tonviewer.com/transaction/' || LOWER(TO_HEX(FROM_BASE64(E.trace_id))),
+    DATE_FORMAT(E.block_time, '%Y-%m-%d %H:%i')
+) AS sale_time
+
+-- User wallet link (non-bounceable UQ for real users)
+GET_HREF(
+    'https://tonviewer.com/' || ton_address_raw_to_user_friendly(E.owner_address, false),
+    SUBSTR(ton_address_raw_to_user_friendly(E.owner_address, false), 1, 6) || '...' || SUBSTR(ton_address_raw_to_user_friendly(E.owner_address, false), -4)
+) AS buyer
+
+-- Smart contract link (bounceable EQ — default)
 GET_HREF(
     'https://tonviewer.com/' || ton_address_raw_to_user_friendly(m.source),
     SUBSTR(ton_address_raw_to_user_friendly(m.source), 1, 6) || '...' || SUBSTR(ton_address_raw_to_user_friendly(m.source), -4)
-) AS address
+) AS contract
 ```
 
 ## Multi-Hop Flow Tracing

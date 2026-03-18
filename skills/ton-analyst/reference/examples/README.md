@@ -11,3 +11,4 @@ Battle-tested queries with business context. All use patterns from reference/pat
 | [nft-names.sql](nft-names.sql) | How to resolve NFT and collection names? |
 | [trace-fees.sql](trace-fees.sql) | How much gas did each trace initiator pay? |
 | [filter-interfaces.sql](filter-interfaces.sql) | How to exclude jetton_wallet / nft_item contracts? |
+| [fragment-username-sales.sql](fragment-username-sales.sql) | What are the biggest Telegram username sales on Fragment? |

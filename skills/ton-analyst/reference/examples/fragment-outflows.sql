@@ -18,7 +18,7 @@ SELECT
         WHEN m.comment LIKE '%Telegram Ad account%' THEN 'Ad Account Refund'
         WHEN m.comment LIKE '%Telegram account top up%' THEN 'Gift Market Refund'
         WHEN m.opcode = 697974293 THEN 'Username Auction Bid'
-        WHEN m.destination = UPPER('0:8c397c43f9ff0b49659b5d0a302b1a93af7ccc63e5f5c0c4f25a9dc1f8b47ab3')
+        WHEN m.destination = '0:8C397C43F9FF0B49659B5D0A302B1A93AF7CCC63E5F5C0C4F25A9DC1F8B47AB3'
             THEN 'Fragment → Telegram Treasury'
         ELSE 'Other'
     END AS payout_type,
