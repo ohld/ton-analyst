@@ -26,8 +26,9 @@ CTEs, classification logic, and conventions for TON Dune queries.
 20. **Fragment `label = 'fragment'` not `name LIKE '%ragment%'`.** All major Fragment dashboards use `label = 'fragment'` from dataset_labels. Using name matching may return different results.
 21. **Username auction bids ≠ revenue.** Opcode `1178019994` captures ALL bids including losing ones (which are refunded). For actual revenue, use `ton.nft_events WHERE type='sale'` with Fragment marketplace address.
 22. **`nft_metadata.name` already includes `@` for usernames.** Do NOT prepend another `@` — you'll get `@@username`. Just use `N.username` directly.
-23. **`sale_type='auction'` in nft_events = bids, not final sales.** Even with `type='sale'`, auction rows have NULL `trace_id`/`tx_hash` and the same NFT can appear multiple times at different prices (= individual bids). Use `sale_type='sale'` for verified completed fixed-price sales with trace_id. See examples/fragment-username-sales.sql.
-24. **User wallet addresses: use non-bounceable (UQ).** `ton_address_raw_to_user_friendly(addr, false)` for user wallets — UQ prefix is the standard for displaying wallet addresses of real users. Bounceable (EQ) is for smart contracts.
+23. **NEVER filter `sale_type = 'sale'` for total sales volume.** `type = 'sale'` already means completed sale — it covers BOTH fixed-price (`sale_type='sale'`) AND auction (`sale_type='auction'`). Adding `AND sale_type = 'sale'` excludes all auction completions — which is ~87% of username sales by count and ~96% by volume. Bids are `type = 'bid'`, not `type = 'sale'`. For auction sales, `trace_id` may be NULL — use NFT item address link as fallback. See examples/fragment-username-sales.sql.
+24. **Auction sales have NULL `trace_id`.** Use COALESCE to fall back to NFT item address for transaction links: `COALESCE('https://tonviewer.com/transaction/' || LOWER(TO_HEX(FROM_BASE64(E.trace_id))), 'https://tonviewer.com/' || ton_address_raw_to_user_friendly(E.nft_item_address, true))`.
+25. **User wallet addresses: use non-bounceable (UQ).** `ton_address_raw_to_user_friendly(addr, false)` for user wallets — UQ prefix is the standard for displaying wallet addresses of real users. Bounceable (EQ) is for smart contracts.
 
 ## ALL_LABELS + REAL_USERS
 
