@@ -247,7 +247,7 @@ NFT transfer, sale, mint, bid events.
 | owner_address | varchar | New owner after event |
 | prev_owner | varchar | Previous owner |
 | sale_price | decimal(38,0) | In nanoTON (divide by 1e9 for display, but use `* price_usd` for USD) |
-| sale_type | varchar | `'auction'` or `'sale'` (fixed price) |
+| sale_type | varchar | `'auction'` or `'sale'` (fixed price). Describes the MECHANISM, not completion status. Both values appear with `type='sale'` (= completed). Never filter `sale_type='sale'` to get "all sales" — that excludes auctions (~87% of username sales). |
 | marketplace_address | varchar | Which marketplace handled the sale |
 | marketplace_fee | decimal(38,0) | Fee in nanoTON |
 | payment_asset | varchar | Usually `'TON'` |
