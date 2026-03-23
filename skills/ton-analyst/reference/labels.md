@@ -4,6 +4,8 @@
 
 [ton-studio/ton-labels](https://github.com/ton-studio/ton-labels/) — public repo, orgs/apps only (not individual people).
 
+**How to add new labels:** See [ton-labels-guide.md](ton-labels-guide.md) — investigation workflow, proof requirements, JSON format, and submission process.
+
 ## dataset_labels Categories
 
 ~3,150 labeled addresses across 17 categories:
