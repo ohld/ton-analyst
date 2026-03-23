@@ -49,8 +49,22 @@ All messages (transactions) on TON.
 | value | bigint | Nanotons (divide by 1e9) |
 | opcode | int | 260734629 = jetton internal transfer |
 | bounced | boolean | Filter with `NOT bounced` |
+<<<<<<< HEAD
 | comment | string | Human-readable comment (NULL when absent) |
+=======
+| comment | string | Text comment attached to transfer (see below) |
+>>>>>>> 3f2b160 (docs: add comment field analysis patterns and cross-validation techniques)
 | fwd_fee | bigint | Forward fee |
+
+**Comment field details:**
+- NULL when no comment attached (most transactions have no comment)
+- Plain text for human-readable messages (e.g. `"donation"`, `"Ref#12345"`)
+- Numeric strings for service identifiers (e.g. `"1234567890"`)
+- JSON objects for some DeFi/app protocols (e.g. `{"user_id": 123}`)
+- Structured formats: `prefix:value`, `prefix-value`, `timestamp+id`
+- Encoding: UTF-8, may contain emoji or non-Latin characters
+- Use `regexp_like(comment, '^pattern$')` for filtering, `REGEXP_EXTRACT(comment, 'pattern', 1)` for extraction
+- Use `SUBSTR(comment, 1, N)` to truncate in output — never `LEFT()` (reserved keyword in Trino)
 
 **CRITICAL — always filter `direction = 'in'` when aggregating.** TON uses async message-passing: a transaction has 1 incoming message and may produce outgoing messages that trigger further transactions (all sharing the same `trace_id`). The `ton.messages` table stores both `direction='in'` and `direction='out'` rows. Without filtering, SUMs and COUNTs will be inflated. See reference/ton-blockchain.md for the full execution model.
 
