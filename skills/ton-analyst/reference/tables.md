@@ -49,7 +49,7 @@ All messages (transactions) on TON.
 | value | bigint | Nanotons (divide by 1e9) |
 | opcode | int | 260734629 = jetton internal transfer |
 | bounced | boolean | Filter with `NOT bounced` |
-| comment | string | Human-readable comment |
+| comment | string | Human-readable comment (NULL when absent) |
 | fwd_fee | bigint | Forward fee |
 
 **CRITICAL — always filter `direction = 'in'` when aggregating.** TON uses async message-passing: a transaction has 1 incoming message and may produce outgoing messages that trigger further transactions (all sharing the same `trace_id`). The `ton.messages` table stores both `direction='in'` and `direction='out'` rows. Without filtering, SUMs and COUNTs will be inflated. See reference/ton-blockchain.md for the full execution model.
