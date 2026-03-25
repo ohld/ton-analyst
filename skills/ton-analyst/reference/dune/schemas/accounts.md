@@ -28,3 +28,25 @@ cardinality(FILTER(interfaces, i -> i = 'validation_nominator_pool')) > 0
 -- Exclude jetton wallets
 array_position(A.interfaces, 'jetton_wallet') = 0
 ```
+
+## Related Materialized Views
+
+### dune.ton_foundation.result_custodial_wallets
+
+Custodial deposit wallets (~10.8M addresses). Detected by transaction patterns.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| address | string | |
+| label | string | e.g. `'Binance | cust'`, `'wallet_in_telegram'` |
+| category | string | `'CEX'` for exchanges, but also contains non-CEX wallets |
+
+**WARNING:** Contains MORE than CEX wallets. Includes Telegram-hosted wallets and other custodial services. When counting CEX deposits/volumes, always filter `WHERE category = 'CEX'`.
+
+Source query: [Q5032986](https://dune.com/queries/5032986) | ~10.8M rows
+
+### dune.ton_foundation.result_sybil_wallets
+
+Sybil/bot addresses (~153K). Single column: `address`.
+
+Source query: [Q5206440](https://dune.com/queries/5206440) | ~153K rows

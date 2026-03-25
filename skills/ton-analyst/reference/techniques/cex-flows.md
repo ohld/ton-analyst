@@ -44,13 +44,31 @@ Use `result_cex_flows_daily` to check if an intermediate address has ever deposi
 ```sql
 , cex_senders AS (
     SELECT address FROM dune.ton_foundation.result_cex_flows_daily
-    WHERE flow = 'to_cex' AND token_address = '0:000...000' AND day >= DATE '2025-01-01'
+    WHERE flow = 'to_cex' AND token_address = '0:0000000000000000000000000000000000000000000000000000000000000000' AND day >= DATE '2025-01-01'
     GROUP BY 1
 )
 ```
 
+## Key Materialized Views
+
+### dune.ton_foundation.result_custodial_wallets
+
+Custodial deposit wallets (~10.8M addresses). Detected by transaction patterns. Contains CEX + non-CEX custodial wallets — always filter `WHERE category = 'CEX'` for exchange analysis.
+
+Source query: [Q5032986](https://dune.com/queries/5032986)
+
+Full schema: see [../dune/schemas/accounts.md](../dune/schemas/accounts.md#related-materialized-views)
+
+### dune.ton_foundation.result_cex_flows_daily
+
+Daily CEX deposits/withdrawals per address. ~38M rows.
+
+Safe for per-address detection ("did address X deposit to CEX?"). **UNSAFE for total market flows** — inflates 2-3x. Use `ton.messages` with dual CEX join instead (see CEX_NET_FLOW above).
+
+Source query: TBD
+
 ## Related
 
 - CEX attribution capping: gotcha #18 in ../dune/query-patterns.md
-- `result_custodial_wallets` schema: ../dune/schemas/ton-foundation-tables.md
+- `result_custodial_wallets` full schema: [../dune/schemas/accounts.md](../dune/schemas/accounts.md)
 - Multi-hop tracing with CEX as destination: flow-tracing.md

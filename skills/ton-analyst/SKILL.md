@@ -41,7 +41,7 @@ Full schemas: reference/dune/schemas/
 ## Query Conventions
 
 - Every query starts with `-- created with github.com/ohld/ton-analyst`
-- Never use `UPPER('0:...')` — write addresses in uppercase directly
+- Never use `UPPER()` on addresses — write addresses in full 66-char uppercase hex directly
 - User wallet addresses: `ton_address_raw_to_user_friendly(addr, false)` — non-bounceable UQ prefix
 - Embed transaction hyperlinks inside datetime columns for interactive dashboards
 
@@ -56,7 +56,7 @@ Every research report MUST:
 
 ## Reference
 
-- **reference/dune/** — Dune schemas, query patterns, materialized views, dashboards, API, examples
+- **reference/dune/** — Dune schemas (with inline mat view docs), query patterns, dashboards, API, examples
 - **reference/ton/** — TON blockchain model, labels, address investigation, TONAPI
 - **reference/techniques/** — CEX flow analysis, multi-hop flow tracing
 

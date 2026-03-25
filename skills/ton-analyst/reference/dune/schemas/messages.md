@@ -19,4 +19,24 @@ All messages (transactions) on TON.
 
 **CRITICAL — always filter `direction = 'in'` when aggregating.** TON uses async message-passing: a transaction has 1 incoming message and may produce outgoing messages that trigger further transactions (all sharing the same `trace_id`). The `ton.messages` table stores both `direction='in'` and `direction='out'` rows. Without filtering, SUMs and COUNTs will be inflated. See ../ton/blockchain.md for the full execution model.
 
-**Standard filter:** `WHERE direction = 'in' AND NOT bounced AND block_date >= DATE '...'`
+**Standard filter:** `WHERE direction = 'in' AND NOT bounced AND block_date >= DATE '2025-01-01'`
+
+## Related Materialized Views (Staking)
+
+### dune.ton_foundation.result_nominators_cashflow
+
+Staking deposit/withdrawal flows for nominator pools.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| user_address | string | |
+| value | bigint | Nanotons |
+| direction | string | `'in'` (deposit) or `'out'` (withdrawal) |
+
+Source query: TBD
+
+### dune.ton_foundation.result_nominators_balances
+
+Current staking positions in nominator pools.
+
+Source query: TBD

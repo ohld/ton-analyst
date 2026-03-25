@@ -54,7 +54,7 @@ For daily forward-fill (line charts), seed with a known initial value to skip un
 , balance_changes AS (
     SELECT CAST(block_date AS DATE) AS dt, CAST(amount AS DOUBLE) / 1e9 AS balance_ton,
         ROW_NUMBER() OVER (PARTITION BY CAST(block_date AS DATE) ORDER BY block_time DESC) AS rn
-    FROM ton.balances_history WHERE address = '0:...' AND asset = 'TON' AND block_date >= DATE '2025-11-11'
+    FROM ton.balances_history WHERE address = '0:YOUR_ADDRESS_HERE' AND asset = 'TON' AND block_date >= DATE '2025-11-11'
 ),
 
 , daily_balance AS (
@@ -77,5 +77,5 @@ FROM joined j LEFT JOIN daily_balance lb ON lb.dt = j.last_known_dt
 ## Related
 
 - CEX flow patterns and net flow calculation: cex-flows.md
-- Change-log table schemas: ../dune/schemas/balances-history.md
+- Change-log table schemas: ../dune/schemas/balances.md
 - Balance tier classification: ../dune/query-patterns.md (BALANCE_TIERS)

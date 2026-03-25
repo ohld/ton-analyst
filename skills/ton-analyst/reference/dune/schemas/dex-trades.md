@@ -39,13 +39,29 @@ token_sold_address IN (
 **Top USDT/TON pools by TVL (Mar 2026):**
 | Pool | Project | TVL USD |
 |------|---------|---------|
-| `0:8649...A6C6` | STON.fi (pTON v2) | $5.7M |
-| `0:FC4C...9D7E` | STON.fi (pTON v1) | $4.9M |
-| `0:3E5F...5588` | DeDust (native TON) | $0.7M |
-| `0:F6E6...6931` | TONCO | $0.1M |
+| STON.fi v2 pool | STON.fi (pTON v2) | $5.7M |
+| STON.fi v1 pool | STON.fi (pTON v1) | $4.9M |
+| DeDust pool | DeDust (native TON) | $0.7M |
+| TONCO pool | TONCO | $0.1M |
 
-**tsTON** (`0:BDF3...1000`) is a liquid staking derivative. Selling tsTON = indirect TON sell pressure, but requires multi-hop tracking. Not included in direct TON sell analysis.
+Pool addresses: query `dune.ton_foundation.result_dex_pools_latest` for current pool addresses.
+
+**tsTON** is a liquid staking derivative. Selling tsTON = indirect TON sell pressure, but requires multi-hop tracking. Not included in direct TON sell analysis.
 
 **NO `token_sold_symbol` column exists.** Use token addresses directly. Use `dune.ton_foundation.result_dex_pools_latest` for pool discovery.
 
-**swap.coffee** uses native TON (`0:0000...0000`) directly, no separate pTON.
+**swap.coffee** uses native TON (`0:0000000000000000000000000000000000000000000000000000000000000000`) directly, no separate pTON.
+
+## Related Materialized Views
+
+### dune.ton_foundation.result_dex_pools_daily
+
+DEX pool metrics by day. Use for TVL tracking, volume analysis, pool discovery.
+
+Source query: TBD
+
+### dune.ton_foundation.result_dex_pools_latest
+
+Current DEX pool state. Use for pool discovery and current TVL lookups.
+
+Source query: TBD

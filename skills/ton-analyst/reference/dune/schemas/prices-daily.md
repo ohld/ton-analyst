@@ -20,3 +20,11 @@ SELECT DATE_TRUNC('month', timestamp) AS month, token_address,
        MAX_BY(price_usd, timestamp) AS price_usd
 FROM ton.prices_daily GROUP BY 1, 2
 ```
+
+## Related Materialized Views
+
+### dune.ton_foundation.result_jetton_price_daily
+
+Jetton prices computed by TON Foundation. May cover tokens not in `ton.prices_daily`.
+
+Source query: TBD

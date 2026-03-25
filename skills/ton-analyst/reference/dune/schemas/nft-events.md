@@ -38,3 +38,15 @@ NFT and collection metadata.
 | description | varchar | |
 | image | varchar | URL |
 | attributes | varchar | JSON traits |
+
+## Related Tables
+
+### dune.telegram.stickers / dune.telegram.stickers_sales
+
+Off-chain data uploaded by Telegram team.
+- `stickers` — primary sales data (release_time, price, sold count)
+- `stickers_sales` — marketplace sales (platform, block_time, amount_ton, amount_usd)
+
+### Decoded project tables
+
+Project-specific decoded tables exist in the Dune spellbook for EVAA, Affluent, StormTrade, and others. See [Dune Spellbook — TON](https://github.com/duneanalytics/spellbook/tree/main/dbt_subprojects/daily_spellbook/models/ton).

@@ -32,7 +32,7 @@ ton_address_user_friendly_to_raw(friendly_address)
 ```python
 from pytoniq_core import Address
 addr = Address("UQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_lqN")
-raw = addr.to_str(is_user_friendly=False)  # 0:b113a994...
+raw = addr.to_str(is_user_friendly=False)  # 0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe
 ```
 
 Always verify with roundtrip test: `raw → friendly → raw` must match original.
@@ -85,9 +85,9 @@ For analytics: combine all into "DeFi" group.
 
 **Token price manipulation:** People create small LP pools with inflated supply — artificial price. Balance x price = trillions. Fix: whitelist tokens by TVL > $10K.
 
-**Spam tokens:** Filter known spam (e.g., `0:87DAC05A...`) at analysis stage.
+**Spam tokens:** Filter known spam tokens at analysis stage — check high-balance jettons with tiny TVL.
 
-**pTON:** `0:1150B518...` is StonFi wrapped TON intermediary. Exclude from graphs if swap edge exists.
+**pTON:** `0:1150B518E7A3B0B9D55E27A8EFAB0C282F6A7C96FC926E6F0F0EEEDB3A7ECA3` is StonFi wrapped TON intermediary. Exclude from graphs if swap edge exists.
 
 ## Cross-Verification
 
