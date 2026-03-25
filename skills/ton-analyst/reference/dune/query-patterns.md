@@ -4,7 +4,7 @@ CTEs, classification logic, and conventions for TON Dune queries.
 
 ## Critical Gotchas
 
-1. **`ton.messages` — always filter `direction = 'in'` when aggregating transfers.** Otherwise SUMs/COUNTs are inflated. See tables.md for details.
+1. **`ton.messages` — always filter `direction = 'in'` when aggregating transfers.** Otherwise SUMs/COUNTs are inflated. See schemas/messages.md for details.
 2. **`dataset_labels.category` is never NULL.** No COALESCE needed. Source: [ton-studio/ton-labels](https://github.com/ton-studio/ton-labels)
 3. **`result_custodial_wallets` is NOT just CEX.** Contains ~10.8M addresses including Telegram-hosted wallets. Filter `WHERE category = 'CEX'`.
 4. **DeFi pool addresses are often NOT in dataset_labels.** Build DEFI_LABELS CTE from `result_dex_pools_latest` + `result_external_balances_history` — see below.
@@ -13,7 +13,7 @@ CTEs, classification logic, and conventions for TON Dune queries.
 7. **Never sum TON + USDT** — different prices. Show separate columns.
 8. **Always add `LIMIT 50`** when exploring. TON has 145M+ accounts.
 9. **Wallet detection via interfaces:** `cardinality(FILTER(interfaces, i -> regexp_like(i, '^wallet_'))) > 0`
-10. **Change-log tables:** No row = no change. Use `MAX_BY` for snapshots — see flow-tracing.md (FORWARD_FILL).
+10. **Change-log tables:** No row = no change. Use `MAX_BY` for snapshots — see ../techniques/flow-tracing.md (FORWARD_FILL).
 11. **Asset naming:** `'TON'` in balances_history vs `'0:000...000'` in external_balances — normalize when merging.
 12. **`code_hash` classifies unlabeled contracts.** Nominator pools, vesting, multisig — all identifiable by code_hash. See Code Hash Reference below.
 13. **All addresses in Dune are RAW UPPERCASE.** Always write addresses in uppercase directly (`'0:B113A994...'`). Never use `UPPER('0:b113a994...')` — just capitalize the address in the SQL.
@@ -21,7 +21,7 @@ CTEs, classification logic, and conventions for TON Dune queries.
 15. **`uninit` accounts can hold TON.** Accounts with `status = 'uninit'` and no `code_hash` can still hold large balances — "parked" funds with no deployed contract. Don't filter them out in flow analysis.
 16. **Interface detection complements code_hash.** For staking pools, `validation_nominator_pool` interface catches pools that code_hash matching misses (e.g. masterchain pools). Prefer interfaces when available, fall back to code_hash for unrecognized contracts.
 17. **`LEFT()` is a reserved keyword in Trino.** Use `SUBSTR(comment, 1, 80)` instead of `LEFT(comment, 80)`. Trino treats LEFT as a join keyword.
-18. **CEX attribution must use net flow, capped at spending.** When analyzing "what % funded by CEX": `min(spending, max(0, cex_in - cex_out)) / spending`. Never use gross CEX inflows — inflates if user received more than they spent. See examples/fragment-inflows.sql. See also cex-flows.md.
+18. **CEX attribution must use net flow, capped at spending.** When analyzing "what % funded by CEX": `min(spending, max(0, cex_in - cex_out)) / spending`. Never use gross CEX inflows — inflates if user received more than they spent. See examples/fragment-inflows.sql. See also ../techniques/cex-flows.md.
 19. **Fragment `label = 'fragment'` not `name LIKE '%ragment%'`.** All major Fragment dashboards use `label = 'fragment'` from dataset_labels. Using name matching may return different results.
 20. **Username auction bids ≠ revenue.** Opcode `1178019994` captures ALL bids including losing ones (which are refunded). For actual revenue, use `ton.nft_events WHERE type='sale'` with Fragment marketplace address.
 21. **`nft_metadata.name` already includes `@` for usernames.** Do NOT prepend another `@` — you'll get `@@username`. Just use `N.username` directly.
@@ -341,5 +341,5 @@ LEFT JOIN pairs_a A ON A.source = B.source
 
 ## Domain-Specific References
 
-- **CEX flow analysis** (deposits, withdrawals, net flow, dual JOIN): See **cex-flows.md**
-- **Multi-hop flow tracing** (ratio attribution, forward-fill, balance reconstruction): See **flow-tracing.md**
+- **CEX flow analysis** (deposits, withdrawals, net flow, dual JOIN): See **../techniques/cex-flows.md**
+- **Multi-hop flow tracing** (ratio attribution, forward-fill, balance reconstruction): See **../techniques/flow-tracing.md**

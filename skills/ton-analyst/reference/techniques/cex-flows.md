@@ -39,7 +39,7 @@ GROUP BY 1
 
 ## CEX Detection Shortcut
 
-Use `result_cex_flows_daily` to check if an intermediate address has ever deposited to CEX — useful in flow tracing (see flow-tracing.md):
+Use `result_cex_flows_daily` to check if an intermediate address has ever deposited to CEX — useful in flow tracing (see [flow-tracing.md](flow-tracing.md)):
 
 ```sql
 , cex_senders AS (
@@ -51,6 +51,6 @@ Use `result_cex_flows_daily` to check if an intermediate address has ever deposi
 
 ## Related
 
-- CEX attribution capping: gotcha #19 in patterns.md
-- `result_custodial_wallets` schema: tables.md
+- CEX attribution capping: gotcha #18 in ../dune/query-patterns.md
+- `result_custodial_wallets` schema: ../dune/schemas/ton-foundation-tables.md
 - Multi-hop tracing with CEX as destination: flow-tracing.md

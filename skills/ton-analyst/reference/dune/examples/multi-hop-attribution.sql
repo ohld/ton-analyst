@@ -15,7 +15,7 @@ WITH source_contract AS (
 ),
 
 -- CEX detection: addresses that have deposited to CEX (via mat view)
--- Safe for detection, NOT for aggregation (see patterns.md gotcha #26)
+-- Safe for detection, NOT for aggregation (see ../query-patterns.md gotcha #2 in cex-flows)
 cex_senders AS (
     SELECT address FROM dune.ton_foundation.result_cex_flows_daily
     WHERE flow = 'to_cex'

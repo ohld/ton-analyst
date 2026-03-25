@@ -4,7 +4,7 @@
 
 [ton-studio/ton-labels](https://github.com/ton-studio/ton-labels/) — public repo, orgs/apps only (not individual people).
 
-**How to add new labels:** See [ton-labels-guide.md](ton-labels-guide.md) — investigation workflow, proof requirements, JSON format, and submission process.
+**How to add new labels:** See [address-investigation.md](address-investigation.md) — investigation workflow, proof requirements, JSON format, and submission process.
 
 ## dataset_labels Categories
 
@@ -62,7 +62,7 @@ CEX = Exchange main wallets + Custodial deposit wallets. Always combine both.
 
 ## DeFi Gap
 
-Many DeFi pool contracts are NOT in `dataset_labels`. Build DEFI_LABELS CTE from `result_dex_pools_latest` + `result_external_balances_history`. See reference/patterns.md for the full CTE.
+Many DeFi pool contracts are NOT in `dataset_labels`. Build DEFI_LABELS CTE from `result_dex_pools_latest` + `result_external_balances_history`. See ../dune/query-patterns.md for the full CTE.
 
 ## Sybil Wallets
 

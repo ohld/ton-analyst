@@ -1,7 +1,7 @@
 -- Supply Breakdown by Holder Type (13 categories)
 --
 -- Question: How is TON supply distributed across holder types?
--- Uses: DEFI_LABELS + LABELS CTEs (see reference/patterns.md), ADDRESS_CLASSIFICATION CASE
+-- Uses: DEFI_LABELS + LABELS CTEs (see ../query-patterns.md), ADDRESS_CLASSIFICATION CASE
 -- Dashboard: https://dune.com/queries/6674371
 --
 -- TON Supply Facts (2026-02-11):
@@ -22,7 +22,7 @@
 
 WITH _ AS (SELECT 1)
 
--- DEFI_LABELS and LABELS CTEs — see reference/patterns.md for reusable versions
+-- DEFI_LABELS and LABELS CTEs — see ../query-patterns.md for reusable versions
 , DEFI_LABELS AS (
     SELECT DEFI.address, ANY_VALUE(label) AS label, ANY_VALUE(category) AS category
     FROM (
@@ -46,7 +46,7 @@ WITH _ AS (SELECT 1)
         SELECT * FROM DEFI_LABELS
 )
 
--- Priority-based CASE — first match wins (see reference/patterns.md for ADDRESS_CLASSIFICATION)
+-- Priority-based CASE — first match wins (see ../query-patterns.md for ADDRESS_CLASSIFICATION)
 , CLASSIFIED AS (
     SELECT A.address, A.balance / 1e9 AS ton_balance,
         CASE

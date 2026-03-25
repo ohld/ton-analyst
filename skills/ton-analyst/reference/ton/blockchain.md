@@ -67,7 +67,7 @@ TON execution model differs from EVM — it uses **async message-passing**:
 
 A transaction has exactly 1 incoming message and may produce 0+ outgoing messages, each triggering further transactions. All share the same `trace_id` (hash of the first transaction).
 
-**Why this matters for Dune:** The `ton.messages` table stores both `direction='in'` and `direction='out'` rows for each message. When aggregating (SUM, COUNT), always filter `direction = 'in'` to avoid inflated numbers. See reference/tables.md for the standard filter.
+**Why this matters for Dune:** The `ton.messages` table stores both `direction='in'` and `direction='out'` rows for each message. When aggregating (SUM, COUNT), always filter `direction = 'in'` to avoid inflated numbers. See ../dune/schemas/messages.md for the standard filter.
 
 ## DeFi Categories
 
@@ -91,4 +91,20 @@ For analytics: combine all into "DeFi" group.
 
 ## Cross-Verification
 
-For critical research, cross-verify Dune aggregations with TONAPI. See reference/tonapi.md for API details and usage.
+For critical research, cross-verify Dune aggregations with TONAPI. See [api.md](api.md) for API details and usage.
+
+## Official Documentation
+
+- [TON Docs](https://docs.ton.org/) — primary reference
+- [TON Addresses](https://docs.ton.org/learn/overviews/addresses) — raw vs user-friendly format, workchain IDs
+- [Message Layout](https://docs.ton.org/develop/smart-contracts/messages) — internal/external messages, opcodes
+- [TL-B Schemas](https://docs.ton.org/develop/data-formats/tl-b-language) — binary data format
+- [Fees & Gas](https://docs.ton.org/develop/howto/fees-low-level) — fee computation model
+- [TON Blockchain Paper](https://docs.ton.org/ton.pdf) — whitepaper
+
+## Key Concepts for Data Analysis
+
+- **Workchain 0** = basechain (user wallets, contracts). **Workchain -1** = masterchain (validators, elector).
+- Addresses starting with `-1:` are masterchain. All others are basechain `0:`.
+- TON uses **asynchronous message passing**: a transaction has 1 incoming message and produces 0+ outgoing messages.
+- Each message in a chain shares the same `trace_id` — use it to follow multi-step operations.

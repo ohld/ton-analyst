@@ -4,7 +4,7 @@ Patterns for tracing fund flows through multiple wallets on TON: multi-hop ratio
 
 ## Critical Gotchas
 
-1. **Multi-hop ratio attribution for flow tracing.** When tracing funds through intermediary wallets: `bf_share = source_inflow / total_inflow`. Apply ratio to each outflow. Propagate through hops. This prevents double-counting when intermediaries have non-source income. See examples/multi-hop-attribution.sql.
+1. **Multi-hop ratio attribution for flow tracing.** When tracing funds through intermediary wallets: `bf_share = source_inflow / total_inflow`. Apply ratio to each outflow. Propagate through hops. This prevents double-counting when intermediaries have non-source income. See ../dune/examples/multi-hop-attribution.sql.
 2. **`balances_history` records changes only.** No row = no change that day. For daily charts, generate a day sequence and forward-fill: seed with known initial value, then `MAX(CASE WHEN balance IS NOT NULL THEN dt END) OVER (ORDER BY dt)` to carry forward.
 
 ## Multi-Hop Flow Tracing (Ratio Attribution)
@@ -18,7 +18,7 @@ Trace fund flows through multiple wallet hops with ratio-based attribution.
 4. Attribute each outflow proportionally: `attributed = outflow * source_share`
 5. Repeat for 3-4 hops
 
-**CEX detection shortcut:** Use `result_cex_flows_daily` to check if an intermediate address has ever deposited to CEX — avoids extra hops through custodial wallets (see cex-flows.md for the CTE).
+**CEX detection shortcut:** Use `result_cex_flows_daily` to check if an intermediate address has ever deposited to CEX — avoids extra hops through custodial wallets (see [cex-flows.md](cex-flows.md) for the CTE).
 
 **Destination categories (priority order):**
 1. `-1:` prefix → Masterchain staking
@@ -30,7 +30,7 @@ Trace fund flows through multiple wallet hops with ratio-based attribution.
 
 **Performance:** 4-hop ratio attribution runs in ~250s on Dune. Each additional hop adds ~60s. 4 hops covers 93%+ of flows for TBF-style analysis.
 
-See `examples/multi-hop-attribution.sql` for full 4-hop implementation.
+See `../dune/examples/multi-hop-attribution.sql` for full 4-hop implementation.
 
 ## FORWARD_FILL (MAX_BY)
 
@@ -77,5 +77,5 @@ FROM joined j LEFT JOIN daily_balance lb ON lb.dt = j.last_known_dt
 ## Related
 
 - CEX flow patterns and net flow calculation: cex-flows.md
-- Change-log table schemas: tables.md
-- Balance tier classification: patterns.md (BALANCE_TIERS)
+- Change-log table schemas: ../dune/schemas/balances-history.md
+- Balance tier classification: ../dune/query-patterns.md (BALANCE_TIERS)

@@ -36,7 +36,7 @@ You are a TON blockchain data analyst. You write Dune SQL queries, execute them 
 | `ton.nft_metadata` | NFT/collection names and metadata |
 | `dune.rdmcd.result_gifts_collection_addresses` | 109 Telegram Gift collection addresses |
 
-Full schemas: reference/tables.md
+Full schemas: reference/dune/schemas/
 
 ## Query Conventions
 
@@ -56,8 +56,9 @@ Every research report MUST:
 
 ## Reference
 
-- **reference/** — SQL knowledge base: table schemas, reusable CTEs, labels, gotchas, API docs
-- **reference/examples/** — Battle-tested SQL queries with business context
+- **reference/dune/** — Dune schemas, query patterns, materialized views, dashboards, API, examples
+- **reference/ton/** — TON blockchain model, labels, address investigation, TONAPI
+- **reference/techniques/** — CEX flow analysis, multi-hop flow tracing
 
 ## External Resources
 
