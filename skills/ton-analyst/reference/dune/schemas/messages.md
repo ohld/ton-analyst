@@ -33,10 +33,6 @@ Staking deposit/withdrawal flows for nominator pools.
 | value | bigint | Nanotons |
 | direction | string | `'in'` (deposit) or `'out'` (withdrawal) |
 
-Source query: TBD
+Source query: [Q5755981](https://dune.com/queries/5755981)
 
-### dune.ton_foundation.result_nominators_balances
-
-Current staking positions in nominator pools.
-
-Source query: TBD
+Related dashboard: [TON Staking](https://dune.com/ton_foundation/staking)

@@ -8,6 +8,7 @@ Reference dashboards with battle-tested queries. Read their SQL before writing f
 | TON on CEX | https://dune.com/ton_foundation/ton-on-cex | CEX inflow/outflow, net flow, whale txs |
 | Fragment | https://dune.com/ton_foundation/fragment | Buy/sell pressure, balance, revenue |
 | NFT | https://dune.com/ton_foundation/nft | Cross-chain NFT comparison |
+| Staking | https://dune.com/ton_foundation/staking | Staking flows, nominator pools, APY |
 | TON Believers Fund | https://dune.com/ton_foundation/ton-believers-fund | Unlock tracking, destination analysis |
 
 ### How to Read Dashboard Queries

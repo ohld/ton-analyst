@@ -23,11 +23,10 @@ Mat view docs are inlined in the schema files where they're most relevant. This 
 | `result_custodial_wallets` | CEX deposit wallets (~10.8M) | [Q5032986](https://dune.com/queries/5032986) | [accounts.md](accounts.md), [cex-flows.md](../../techniques/cex-flows.md) |
 | `result_cex_flows_daily` | Daily CEX deposits/withdrawals (~38M) | [Q6871358](https://dune.com/queries/6871358) | [cex-flows.md](../../techniques/cex-flows.md) |
 | `result_sybil_wallets` | Sybil/bot addresses (~153K) | [Q5206440](https://dune.com/queries/5206440) | [accounts.md](accounts.md) |
-| `result_nominators_cashflow` | Staking deposit/withdrawal flows | TBD | [messages.md](messages.md) |
-| `result_nominators_balances` | Current staking positions | TBD | [messages.md](messages.md) |
+| `result_nominators_cashflow` | Staking deposit/withdrawal flows | [Q5755981](https://dune.com/queries/5755981) | [messages.md](messages.md) |
 | `result_dex_pools_daily` | DEX pool metrics by day | TBD | [dex-trades.md](dex-trades.md) |
 | `result_dex_pools_latest` | Current DEX pool state | TBD | [dex-trades.md](dex-trades.md) |
-| `result_external_balances_history` | DeFi position changes | TBD | [balances.md](balances.md) |
+| `result_external_balances_history` | DeFi position changes | [Q5622650](https://dune.com/queries/5622650) | [balances.md](balances.md) |
 | ~~`result_jetton_price_daily`~~ | Deprecated — use `ton.prices_daily` | — | — |
 | `dataset_labels` | Named entities (~3,150) | [ton-studio/ton-labels](https://github.com/ton-studio/ton-labels) | [../../ton/labels.md](../../ton/labels.md) |
 | `dune.rdmcd.result_gifts_collection_addresses` | 109 Telegram Gift collections | — | [../../ton/labels.md](../../ton/labels.md) |
