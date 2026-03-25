@@ -37,13 +37,18 @@ jobs:
       - name: Check reference files exist
         run: |
           refs=(
-            "skills/ton-analyst/reference/tables.md"
-            "skills/ton-analyst/reference/labels.md"
-            "skills/ton-analyst/reference/patterns.md"
-            "skills/ton-analyst/reference/dune-api.md"
-            "skills/ton-analyst/reference/ton-blockchain.md"
-            "skills/ton-analyst/reference/tonapi.md"
-            "skills/ton-analyst/reference/examples/README.md"
+            "skills/ton-analyst/reference/dune/query-patterns.md"
+            "skills/ton-analyst/reference/dune/api.md"
+            "skills/ton-analyst/reference/dune/dashboards.md"
+            "skills/ton-analyst/reference/dune/schemas/README.md"
+            "skills/ton-analyst/reference/dune/schemas/messages.md"
+            "skills/ton-analyst/reference/dune/schemas/accounts.md"
+            "skills/ton-analyst/reference/dune/examples/README.md"
+            "skills/ton-analyst/reference/ton/blockchain.md"
+            "skills/ton-analyst/reference/ton/labels.md"
+            "skills/ton-analyst/reference/ton/api.md"
+            "skills/ton-analyst/reference/techniques/cex-flows.md"
+            "skills/ton-analyst/reference/techniques/flow-tracing.md"
           )
           for f in "${refs[@]}"; do
             if [ ! -f "$f" ]; then
@@ -56,7 +61,7 @@ jobs:
       - name: Check SQL examples are non-empty
         run: |
           count=0
-          for f in skills/ton-analyst/reference/examples/*.sql; do
+          for f in skills/ton-analyst/reference/dune/examples/*.sql; do
             if [ ! -s "$f" ]; then
               echo "EMPTY: $f"
               exit 1
