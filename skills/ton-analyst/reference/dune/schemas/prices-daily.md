@@ -21,10 +21,4 @@ SELECT DATE_TRUNC('month', timestamp) AS month, token_address,
 FROM ton.prices_daily GROUP BY 1, 2
 ```
 
-## Related Materialized Views
-
-### dune.ton_foundation.result_jetton_price_daily
-
-Jetton prices computed by TON Foundation. May cover tokens not in `ton.prices_daily`.
-
-Source query: TBD
+**Note:** `result_jetton_price_daily` mat view is deprecated — use `ton.prices_daily` instead.

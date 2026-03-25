@@ -28,7 +28,7 @@ Mat view docs are inlined in the schema files where they're most relevant. This 
 | `result_dex_pools_daily` | DEX pool metrics by day | TBD | [dex-trades.md](dex-trades.md) |
 | `result_dex_pools_latest` | Current DEX pool state | TBD | [dex-trades.md](dex-trades.md) |
 | `result_external_balances_history` | DeFi position changes | TBD | [balances.md](balances.md) |
-| `result_jetton_price_daily` | Jetton prices | TBD | [prices-daily.md](prices-daily.md) |
+| ~~`result_jetton_price_daily`~~ | Deprecated — use `ton.prices_daily` | — | — |
 | `dataset_labels` | Named entities (~3,150) | [ton-studio/ton-labels](https://github.com/ton-studio/ton-labels) | [../../ton/labels.md](../../ton/labels.md) |
 | `dune.rdmcd.result_gifts_collection_addresses` | 109 Telegram Gift collections | — | [../../ton/labels.md](../../ton/labels.md) |
 

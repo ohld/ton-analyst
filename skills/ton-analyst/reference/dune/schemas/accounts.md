@@ -33,7 +33,7 @@ array_position(A.interfaces, 'jetton_wallet') = 0
 
 ### dune.ton_foundation.result_custodial_wallets
 
-Custodial deposit wallets (~10.8M addresses). Detected by transaction patterns.
+Custodial deposit wallets (~10.8M addresses). Extends the labelling system from [ton-labels](../../ton/labels.md) — auto-detects wallets that only send to labelled `has-custodial-wallets` addresses of one organization.
 
 | Column | Type | Notes |
 |--------|------|-------|

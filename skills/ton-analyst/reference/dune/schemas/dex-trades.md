@@ -37,14 +37,14 @@ token_sold_address IN (
 **USDT address:** `0:B113A994B5024A16719F69139328EB759596C38A25F59028B146FECDC3621DFE` (6 decimals)
 
 **Top USDT/TON pools by TVL (Mar 2026):**
-| Pool | Project | TVL USD |
-|------|---------|---------|
-| STON.fi v2 pool | STON.fi (pTON v2) | $5.7M |
-| STON.fi v1 pool | STON.fi (pTON v1) | $4.9M |
-| DeDust pool | DeDust (native TON) | $0.7M |
-| TONCO pool | TONCO | $0.1M |
+| Pool Address | Project | Name | TVL |
+|------|---------|------|-----|
+| `0:8649CAD97B5C5BC96A960EF748EA6CCFF8601C01616FE995EE6893AE4AA7A6C6` | STON.fi | USD₮/TON (pTON v2) | $5.7M |
+| `0:FC4C9F311160754A99D113877CF583B78E5D16D048819CD4B820168769499D7E` | STON.fi | USD₮/TON (pTON v1) | $4.9M |
+| `0:3E5FFCA8DDFCF36C36C9FF46F31562AAB51B9914845AD6C26CBDE649D58A5588` | DeDust | USD₮/TON (native) | $0.7M |
+| `0:F6E6F4AD13073E875413D6A96C60F430A94E4888E868C79208D02FF1B0336931` | TONCO | USD₮/TON | $0.1M |
 
-Pool addresses: query `dune.ton_foundation.result_dex_pools_latest` for current pool addresses.
+For current pool addresses and TVL, query `dune.ton_foundation.result_dex_pools_latest`.
 
 **tsTON** is a liquid staking derivative. Selling tsTON = indirect TON sell pressure, but requires multi-hop tracking. Not included in direct TON sell analysis.
 
