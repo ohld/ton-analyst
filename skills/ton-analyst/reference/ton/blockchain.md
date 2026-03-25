@@ -32,7 +32,7 @@ ton_address_user_friendly_to_raw(friendly_address)
 ```python
 from pytoniq_core import Address
 addr = Address("UQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_lqN")
-raw = addr.to_str(is_user_friendly=False)  # 0:b113a994...
+raw = addr.to_str(is_user_friendly=False)  # 0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe
 ```
 
 Always verify with roundtrip test: `raw → friendly → raw` must match original.
@@ -67,7 +67,7 @@ TON execution model differs from EVM — it uses **async message-passing**:
 
 A transaction has exactly 1 incoming message and may produce 0+ outgoing messages, each triggering further transactions. All share the same `trace_id` (hash of the first transaction).
 
-**Why this matters for Dune:** The `ton.messages` table stores both `direction='in'` and `direction='out'` rows for each message. When aggregating (SUM, COUNT), always filter `direction = 'in'` to avoid inflated numbers. See reference/tables.md for the standard filter.
+**Why this matters for Dune:** The `ton.messages` table stores both `direction='in'` and `direction='out'` rows for each message. When aggregating (SUM, COUNT), always filter `direction = 'in'` to avoid inflated numbers. See ../dune/schemas/messages.md for the standard filter.
 
 ## DeFi Categories
 
@@ -85,10 +85,26 @@ For analytics: combine all into "DeFi" group.
 
 **Token price manipulation:** People create small LP pools with inflated supply — artificial price. Balance x price = trillions. Fix: whitelist tokens by TVL > $10K.
 
-**Spam tokens:** Filter known spam (e.g., `0:87DAC05A...`) at analysis stage.
+**Spam tokens:** Filter known spam tokens at analysis stage — check high-balance jettons with tiny TVL.
 
-**pTON:** `0:1150B518...` is StonFi wrapped TON intermediary. Exclude from graphs if swap edge exists.
+**pTON:** `0:1150B518E7A3B0B9D55E27A8EFAB0C282F6A7C96FC926E6F0F0EEEDB3A7ECA3` is StonFi wrapped TON intermediary. Exclude from graphs if swap edge exists.
 
 ## Cross-Verification
 
-For critical research, cross-verify Dune aggregations with TONAPI. See reference/tonapi.md for API details and usage.
+For critical research, cross-verify Dune aggregations with TONAPI. See [api.md](api.md) for API details and usage.
+
+## Official Documentation
+
+- [TON Docs](https://docs.ton.org/) — primary reference
+- [TON Addresses](https://docs.ton.org/learn/overviews/addresses) — raw vs user-friendly format, workchain IDs
+- [Message Layout](https://docs.ton.org/develop/smart-contracts/messages) — internal/external messages, opcodes
+- [TL-B Schemas](https://docs.ton.org/develop/data-formats/tl-b-language) — binary data format
+- [Fees & Gas](https://docs.ton.org/develop/howto/fees-low-level) — fee computation model
+- [TON Blockchain Paper](https://docs.ton.org/ton.pdf) — whitepaper
+
+## Key Concepts for Data Analysis
+
+- **Workchain 0** = basechain (user wallets, contracts). **Workchain -1** = masterchain (validators, elector).
+- Addresses starting with `-1:` are masterchain. All others are basechain `0:`.
+- TON uses **asynchronous message passing**: a transaction has 1 incoming message and produces 0+ outgoing messages.
+- Each message in a chain shares the same `trace_id` — use it to follow multi-step operations.

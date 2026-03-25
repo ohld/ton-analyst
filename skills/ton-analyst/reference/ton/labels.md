@@ -4,7 +4,7 @@
 
 [ton-studio/ton-labels](https://github.com/ton-studio/ton-labels/) — public repo, orgs/apps only (not individual people).
 
-**How to add new labels:** See [ton-labels-guide.md](ton-labels-guide.md) — investigation workflow, proof requirements, JSON format, and submission process.
+**How to add new labels:** See [address-investigation.md](address-investigation.md) — investigation workflow, proof requirements, JSON format, and submission process.
 
 ## dataset_labels Categories
 
@@ -62,7 +62,7 @@ CEX = Exchange main wallets + Custodial deposit wallets. Always combine both.
 
 ## DeFi Gap
 
-Many DeFi pool contracts are NOT in `dataset_labels`. Build DEFI_LABELS CTE from `result_dex_pools_latest` + `result_external_balances_history`. See reference/patterns.md for the full CTE.
+Many DeFi pool contracts are NOT in `dataset_labels`. Build DEFI_LABELS CTE from `result_dex_pools_latest` + `result_external_balances_history`. See ../dune/query-patterns.md for the full CTE.
 
 ## Sybil Wallets
 
@@ -125,7 +125,7 @@ INNER JOIN dune.ton_foundation.dataset_labels lbl
 | 11 | `opcode = 1178019994` | Username Auction Bids | **Includes ALL bids, not just winners.** Losing bids are returned. Volume ≠ revenue |
 | 12 | `opcode = 923790417` | TG Gift NFT Mint | Minting Telegram Gift as on-chain NFT. **Includes gift value, NOT just gas.** 95% of TON volume is in txs > 100 TON |
 | 13 | Source = Fragment (`label = 'fragment'`) | Fragment Rebalancing | **Exclude from analysis** — operational inter-wallet transfers |
-| 14 | Source = `0:8C39...B47AB3` | Topups from Telegram Treasury | Telegram funding Fragment with large TON chunks (6-10M per tx) |
+| 14 | Source = `0:8C397C43F9FF0B49659B5D0A302B1A93AF7CCC63E5F5C0C4F25A9DC1F8B47AB3` | Topups from Telegram Treasury | Telegram funding Fragment with large TON chunks (6-10M per tx) |
 
 ### Outflow Categories (Fragment → recipients)
 
@@ -139,7 +139,7 @@ INNER JOIN dune.ton_foundation.dataset_labels lbl
 | 6 | `comment LIKE '%Telegram Ad account%'` | Ad Account Refund | |
 | 7 | `comment LIKE '%Telegram account top up%'` | Gift Market Refund | |
 | 8 | `opcode = 697974293` | Username Auction Bid | TON sent to Telemint NFT auction contracts (`nft_item` + `teleitem`). Includes active bids (dest balance > 1 TON) and settlements. |
-| 9 | Dest = `0:8C39...B47AB3` | Fragment → Telegram Treasury | Fragment returning TON to Telegram. Occasional large transfers (e.g. 37.2M in Dec 2025). |
+| 9 | Dest = `0:8C397C43F9FF0B49659B5D0A302B1A93AF7CCC63E5F5C0C4F25A9DC1F8B47AB3` | Fragment → Telegram Treasury | Fragment returning TON to Telegram. Occasional large transfers (e.g. 37.2M in Dec 2025). |
 | 10 | Dest = Fragment (`label = 'fragment'`) | Fragment Rebalancing | **Exclude from analysis** — operational inter-wallet transfers |
 
 Gas opcodes (negligible TON, safe to merge into "Other"):
@@ -157,7 +157,7 @@ Reference query for Fragment outflows: https://dune.com/queries/6845207
 
 ### Gift NFT Operations
 
-The Gift Operations address (`0:158136...`) handles three flows:
+The Gift Operations address (`0:158136239ADB15DD59DF90C641F9EFD312CFEB8664F218F4C3E5FCE9D95E6C07`) handles three flows:
 - **Transfers TO this address** = moving an on-chain gift back to Telegram (onchain → offchain)
 - **Mints FROM this address** = minting a gift that was never on-chain before
 - **Transfers FROM this address** = moving a previously minted gift from TG to an on-chain address

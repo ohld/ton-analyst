@@ -35,8 +35,8 @@ Don't multiply percentages by 100 or divide TON by 1e6 — Dune UI handles displ
 ## Research Workflow
 
 1. **Understand the question** — What metric? What time range? What filters?
-2. **Plan CTEs** — Start with LABELS/REAL_USERS if filtering users. Check reference/patterns.md
+2. **Plan CTEs** — Start with LABELS/REAL_USERS if filtering users. Check query-patterns.md
 3. **Write SQL** — Follow Presto/Trino syntax. Use `WHERE 1=1` + `AND` filters. Always filter `block_date` for partition pruning
 4. **Execute on Dune** — Use API above. Poll until `is_execution_finished: true`
-5. **Analyze results** — Look for outliers, compare with known facts (see reference/examples/supply-breakdown.sql)
+5. **Analyze results** — Look for outliers, compare with known facts (see examples/supply-breakdown.sql)
 6. **Report** — Structure findings with tables, key takeaways, caveats

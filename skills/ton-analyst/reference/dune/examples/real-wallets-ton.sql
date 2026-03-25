@@ -1,7 +1,7 @@
 -- Real Wallets with 1K+ / 10K+ TON Over Time
 --
 -- Question: How many real human wallets hold significant TON balances over time?
--- Uses: ALL_LABELS + REAL_WALLETS pattern (see reference/patterns.md), threshold crossings + running sum
+-- Uses: ALL_LABELS + REAL_WALLETS pattern (see ../query-patterns.md), threshold crossings + running sum
 -- Note: Sparse output — only days with crossings. Dune line chart handles gaps automatically.
 
 WITH _ AS (SELECT 1)

@@ -4,31 +4,32 @@ CTEs, classification logic, and conventions for TON Dune queries.
 
 ## Critical Gotchas
 
-1. **`ton.messages` — always filter `direction = 'in'` when aggregating transfers.** Otherwise SUMs/COUNTs are inflated. See tables.md for details.
-2. **`dataset_labels.category` is never NULL.** No COALESCE needed. Source: [ton-studio/ton-labels](https://github.com/ton-studio/ton-labels)
-3. **`result_custodial_wallets` is NOT just CEX.** Contains ~10.8M addresses including Telegram-hosted wallets. Filter `WHERE category = 'CEX'`.
-4. **CEX internal transfers are ~42% of volume.** When counting real CEX deposits, exclude transfers where `source` is also in `result_custodial_wallets` — otherwise you count CEX↔CEX shuffling as user deposits.
+1. **NEVER shorten TON addresses.** Write full 66-char hex (`0:ED1691307050047117B998B561D8DE82D31FBF84910CED6EB5FC92E7485EF8A7`) or use hyperlinks where display is shortened but URL has full address. Shortened addresses like `0:ED16...F8A7` are impossible to verify or use — they must never appear in reports, tables, or output.
+2. **`ton.messages` — always filter `direction = 'in'` when aggregating transfers.** Otherwise SUMs/COUNTs are inflated. See schemas/messages.md for details.
+3. **`dataset_labels.category` is never NULL.** No COALESCE needed. Source: [ton-studio/ton-labels](https://github.com/ton-studio/ton-labels)
+4. **`result_custodial_wallets` is NOT just CEX.** Contains ~10.8M addresses including Telegram-hosted wallets. Filter `WHERE category = 'CEX'`.
 5. **DeFi pool addresses are often NOT in dataset_labels.** Build DEFI_LABELS CTE from `result_dex_pools_latest` + `result_external_balances_history` — see below.
 6. **Early miners are `uninit` NOT `frozen`.** Label=`frozen_early_miner`, status=`uninit`.
 7. **Balance is in nanoTON.** Always divide by `1e9`.
 8. **Never sum TON + USDT** — different prices. Show separate columns.
 9. **Always add `LIMIT 50`** when exploring. TON has 145M+ accounts.
 10. **Wallet detection via interfaces:** `cardinality(FILTER(interfaces, i -> regexp_like(i, '^wallet_'))) > 0`
-11. **Change-log tables:** No row = no change. Use `MAX_BY` for snapshots — see FORWARD_FILL below.
-12. **Asset naming:** `'TON'` in balances_history vs `'0:000...000'` in external_balances — normalize when merging.
+11. **Change-log tables:** No row = no change. Use `MAX_BY` for snapshots — see ../techniques/flow-tracing.md (FORWARD_FILL).
+12. **Asset naming:** `'TON'` in balances_history vs `'0:0000000000000000000000000000000000000000000000000000000000000000'` in external_balances — normalize when merging.
 13. **`code_hash` classifies unlabeled contracts.** Nominator pools, vesting, multisig — all identifiable by code_hash. See Code Hash Reference below.
-14. **All addresses in Dune are RAW UPPERCASE.** Always write addresses in uppercase directly (`'0:B113A994...'`). Never use `UPPER('0:b113a994...')` — just capitalize the address in the SQL.
+14. **All addresses in Dune are RAW UPPERCASE.** Always write addresses in uppercase directly (e.g. `'0:B113A994B5024A16719F69139328EB759596C38A25F59028B146FECDC3621DFE'`). Never use `UPPER()` — just capitalize the address in the SQL.
 15. **Complex queries timeout on Dune.** Queries with 3+ heavy CTE joins (DEFI_LABELS + LABELS + accounts + messages) often return empty results silently. Split into sequential simpler queries: first get addresses, then classify separately.
 16. **`uninit` accounts can hold TON.** Accounts with `status = 'uninit'` and no `code_hash` can still hold large balances — "parked" funds with no deployed contract. Don't filter them out in flow analysis.
 17. **Interface detection complements code_hash.** For staking pools, `validation_nominator_pool` interface catches pools that code_hash matching misses (e.g. masterchain pools). Prefer interfaces when available, fall back to code_hash for unrecognized contracts.
 18. **`LEFT()` is a reserved keyword in Trino.** Use `SUBSTR(comment, 1, 80)` instead of `LEFT(comment, 80)`. Trino treats LEFT as a join keyword.
-19. **CEX attribution must use net flow, capped at spending.** When analyzing "what % funded by CEX": `min(spending, max(0, cex_in - cex_out)) / spending`. Never use gross CEX inflows — inflates if user received more than they spent. See examples/fragment-inflows.sql.
+19. **CEX attribution must use net flow, capped at spending.** When analyzing "what % funded by CEX": `min(spending, max(0, cex_in - cex_out)) / spending`. Never use gross CEX inflows — inflates if user received more than they spent. See examples/fragment-inflows.sql. See also ../techniques/cex-flows.md.
 20. **Fragment `label = 'fragment'` not `name LIKE '%ragment%'`.** All major Fragment dashboards use `label = 'fragment'` from dataset_labels. Using name matching may return different results.
 21. **Username auction bids ≠ revenue.** Opcode `1178019994` captures ALL bids including losing ones (which are refunded). For actual revenue, use `ton.nft_events WHERE type='sale'` with Fragment marketplace address.
 22. **`nft_metadata.name` already includes `@` for usernames.** Do NOT prepend another `@` — you'll get `@@username`. Just use `N.username` directly.
 23. **NEVER filter `sale_type = 'sale'` for total sales volume.** `type = 'sale'` already means completed sale — it covers BOTH fixed-price (`sale_type='sale'`) AND auction (`sale_type='auction'`). Adding `AND sale_type = 'sale'` excludes all auction completions — which is ~87% of username sales by count and ~96% by volume. Bids are `type = 'bid'`, not `type = 'sale'`. For auction sales, `trace_id` may be NULL — use NFT item address link as fallback. See examples/fragment-username-sales.sql.
 24. **Auction sales have NULL `trace_id`.** Use COALESCE to fall back to NFT item address for transaction links: `COALESCE('https://tonviewer.com/transaction/' || LOWER(TO_HEX(FROM_BASE64(E.trace_id))), 'https://tonviewer.com/' || ton_address_raw_to_user_friendly(E.nft_item_address, true))`.
 25. **User wallet addresses: use non-bounceable (UQ).** `ton_address_raw_to_user_friendly(addr, false)` for user wallets — UQ prefix is the standard for displaying wallet addresses of real users. Bounceable (EQ) is for smart contracts.
+26. **Dune CLI for query updates.** `dune query update <id> --sql "..." --name "..." --tags "x,y"` works. The REST API PATCH endpoint is broken for name/SQL updates — always use CLI.
 
 ## ALL_LABELS + REAL_USERS
 
@@ -161,20 +162,6 @@ CASE
 END AS balance_tier
 ```
 
-## FORWARD_FILL (MAX_BY)
-
-Both `ton.balances_history` and `result_external_balances_history` are change-logs. To get balance on date X, find the latest row where `block_date <= X`:
-
-```sql
--- Monthly snapshot: balance from the last change within each month
-, BALANCE_UPDATES AS (
-    SELECT DATE_TRUNC('month', block_date) AS month, address, asset,
-           MAX_BY(amount, block_date) AS amount
-    FROM ton.balances_history
-    GROUP BY 1, 2, 3
-)
-```
-
 ## Code Hash Reference
 
 | code_hash (base64) | Type | Count | TON (M) |
@@ -252,7 +239,7 @@ GROUP BY 1 ORDER BY ton DESC LIMIT 50
 - **Partition pruning:** Always filter `block_date` early — critical for performance
 - **Message filtering:** `direction = 'in' AND NOT bounced`
 - **TON conversion:** `/ 1e9` for nanoton to TON
-- **Addresses:** Raw UPPERCASE format (`'0:B113A994...'`). Never use `UPPER()` — capitalize directly. Friendly (UQ/EQ) only via `ton_address_raw_to_user_friendly()`
+- **Addresses:** Raw UPPERCASE format (full 66-char hex). Never use `UPPER()` — capitalize directly. Friendly (UQ/EQ) only via `ton_address_raw_to_user_friendly()`
 - **User wallet display:** `ton_address_raw_to_user_friendly(addr, false)` — non-bounceable UQ for user wallets
 - **Clickable links in Dune:** `GET_HREF(url, display_text)` — embed tx links in datetime columns for interactive dashboards
 - **Engine:** Presto SQL (Dune) — Trino syntax
@@ -353,31 +340,7 @@ LEFT JOIN pairs_a A ON A.source = B.source
 | `^\{.*\}$` | `{"user_id":123}` | JSON payloads |
 | `^[0-9]{10}[0-9]{4,13}$` | `17112345001234567` | Timestamp + ID concatenated |
 
-## Multi-Hop Flow Tracing
+## Domain-Specific References
 
-Trace fund flows through multiple wallet hops (typically 2-4 hops to reach CEX deposits).
-
-**Approach:**
-1. Start from source contract, get direct outflows (hop 1)
-2. For each destination, check if it's a known entity (CEX, DeFi, labeled). If not, trace its outflows (hop 2+)
-3. Repeat until funds land in classified addresses or trail goes cold
-
-**Techniques:**
-- Use `first_tx_sender` from `ton.accounts` as **indirect evidence** of wallet relationship — if wallet A's first_tx_sender is wallet B, they may be controlled by the same entity. NOT proof (third parties can fund fresh addresses).
-- Check destination's current balance — if near zero, the wallet forwarded everything and you need another hop.
-
-**Gotcha:** Do NOT try to do all hops in a single query. Dune will timeout. Instead:
-1. Query hop 1 outflows → save address list
-2. Classify those addresses in a separate query
-3. For unclassified addresses with ~0 balance, query hop 2 outflows
-4. Repeat as needed
-
-```sql
--- Example: Hop 1 — direct outflows from a source address
-SELECT destination, SUM(value / 1e9) AS ton_sent, COUNT(*) AS tx_count
-FROM ton.messages
-WHERE source = '0:YOUR_ADDRESS_HERE'
-  AND direction = 'in' AND NOT bounced
-  AND block_date >= DATE '2026-01-01'
-GROUP BY 1 ORDER BY 2 DESC LIMIT 50
-```
+- **CEX flow analysis** (deposits, withdrawals, net flow, dual JOIN): See **../techniques/cex-flows.md**
+- **Multi-hop flow tracing** (ratio attribution, forward-fill, balance reconstruction): See **../techniques/flow-tracing.md**

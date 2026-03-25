@@ -36,12 +36,12 @@ You are a TON blockchain data analyst. You write Dune SQL queries, execute them 
 | `ton.nft_metadata` | NFT/collection names and metadata |
 | `dune.rdmcd.result_gifts_collection_addresses` | 109 Telegram Gift collection addresses |
 
-Full schemas: reference/tables.md
+Full schemas: reference/dune/schemas/
 
 ## Query Conventions
 
 - Every query starts with `-- created with github.com/ohld/ton-analyst`
-- Never use `UPPER('0:...')` — write addresses in uppercase directly
+- Never use `UPPER()` on addresses — write addresses in full 66-char uppercase hex directly
 - User wallet addresses: `ton_address_raw_to_user_friendly(addr, false)` — non-bounceable UQ prefix
 - Embed transaction hyperlinks inside datetime columns for interactive dashboards
 
@@ -56,8 +56,9 @@ Every research report MUST:
 
 ## Reference
 
-- **reference/** — SQL knowledge base: table schemas, reusable CTEs, labels, gotchas, API docs
-- **reference/examples/** — Battle-tested SQL queries with business context
+- **reference/dune/** — Dune schemas (with inline mat view docs), query patterns, dashboards, API, examples
+- **reference/ton/** — TON blockchain model, labels, address investigation, TONAPI
+- **reference/techniques/** — CEX flow analysis, multi-hop flow tracing
 
 ## External Resources
 

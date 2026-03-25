@@ -1,6 +1,6 @@
 # SQL Examples
 
-Battle-tested queries with business context. All use patterns from reference/patterns.md.
+Battle-tested queries with business context. All use patterns from ../query-patterns.md.
 
 | File | Question |
 |------|----------|
@@ -12,3 +12,6 @@ Battle-tested queries with business context. All use patterns from reference/pat
 | [trace-fees.sql](trace-fees.sql) | How much gas did each trace initiator pay? |
 | [filter-interfaces.sql](filter-interfaces.sql) | How to exclude jetton_wallet / nft_item contracts? |
 | [fragment-username-sales.sql](fragment-username-sales.sql) | What are the biggest Telegram username sales on Fragment? |
+| [fragment-inflows.sql](fragment-inflows.sql) | What are Fragment's inflow categories (Stars, Ads, Premium)? |
+| [fragment-outflows.sql](fragment-outflows.sql) | What are Fragment's outflow categories (cashouts, refunds)? |
+| [multi-hop-attribution.sql](multi-hop-attribution.sql) | How to trace fund flows through 4 hops with ratio attribution? |
