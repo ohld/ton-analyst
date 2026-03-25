@@ -29,6 +29,11 @@ CTEs, classification logic, and conventions for TON Dune queries.
 23. **NEVER filter `sale_type = 'sale'` for total sales volume.** `type = 'sale'` already means completed sale — it covers BOTH fixed-price (`sale_type='sale'`) AND auction (`sale_type='auction'`). Adding `AND sale_type = 'sale'` excludes all auction completions — which is ~87% of username sales by count and ~96% by volume. Bids are `type = 'bid'`, not `type = 'sale'`. For auction sales, `trace_id` may be NULL — use NFT item address link as fallback. See examples/fragment-username-sales.sql.
 24. **Auction sales have NULL `trace_id`.** Use COALESCE to fall back to NFT item address for transaction links: `COALESCE('https://tonviewer.com/transaction/' || LOWER(TO_HEX(FROM_BASE64(E.trace_id))), 'https://tonviewer.com/' || ton_address_raw_to_user_friendly(E.nft_item_address, true))`.
 25. **User wallet addresses: use non-bounceable (UQ).** `ton_address_raw_to_user_friendly(addr, false)` for user wallets — UQ prefix is the standard for displaying wallet addresses of real users. Bounceable (EQ) is for smart contracts.
+26. **`result_cex_flows_daily` — detection OK, aggregation WRONG.** Safe for checking if an address deposited to CEX (`WHERE flow = 'to_cex' GROUP BY address`). UNSAFE for total market flows — inflates 2-3x due to CEX-to-CEX and internal transfers. For total net CEX flows, use `ton.messages` with dual CEX join (see CEX_NET_FLOW pattern below).
+27. **CEX-to-CEX exclusion requires dual JOIN.** When computing net CEX inflows/outflows, JOIN both source and destination against ALL_CEX. Exclude rows where BOTH match. Without this, CEX rebalancing inflates numbers by 40-100%.
+28. **Multi-hop ratio attribution for flow tracing.** When tracing funds through intermediary wallets: `bf_share = source_inflow / total_inflow`. Apply ratio to each outflow. Propagate through hops. This prevents double-counting when intermediaries have non-source income. See examples/multi-hop-attribution.sql.
+29. **`balances_history` records changes only.** No row = no change that day. For daily charts, generate a day sequence and forward-fill: seed with known initial value, then `MAX(CASE WHEN balance IS NOT NULL THEN dt END) OVER (ORDER BY dt)` to carry forward.
+30. **Dune CLI for query updates.** `dune query update <id> --sql "..." --name "..." --tags "x,y"` works. The REST API PATCH endpoint is broken for name/SQL updates — always use CLI.
 
 ## ALL_LABELS + REAL_USERS
 
@@ -173,6 +178,34 @@ Both `ton.balances_history` and `result_external_balances_history` are change-lo
     FROM ton.balances_history
     GROUP BY 1, 2, 3
 )
+```
+
+For daily forward-fill (line charts), seed with a known initial value to skip unnecessary partition scans:
+
+```sql
+, seed AS (SELECT DATE '2025-11-11' AS dt, 1317374904.39 AS balance_ton),  -- known balance
+
+, balance_changes AS (
+    SELECT CAST(block_date AS DATE) AS dt, CAST(amount AS DOUBLE) / 1e9 AS balance_ton,
+        ROW_NUMBER() OVER (PARTITION BY CAST(block_date AS DATE) ORDER BY block_time DESC) AS rn
+    FROM ton.balances_history WHERE address = '0:...' AND asset = 'TON' AND block_date >= DATE '2025-11-11'
+),
+
+, daily_balance AS (
+    SELECT dt, balance_ton FROM seed
+    UNION ALL SELECT dt, balance_ton FROM balance_changes WHERE rn = 1
+),
+
+, all_days AS (SELECT dt FROM UNNEST(SEQUENCE(DATE '2025-11-11', CURRENT_DATE, INTERVAL '1' DAY)) AS t(dt)),
+
+, joined AS (
+    SELECT d.dt, b.balance_ton,
+        MAX(CASE WHEN b.balance_ton IS NOT NULL THEN d.dt END) OVER (ORDER BY d.dt) AS last_known_dt
+    FROM all_days d LEFT JOIN daily_balance b ON b.dt = d.dt
+)
+
+SELECT j.dt, COALESCE(j.balance_ton, lb.balance_ton) AS balance_ton
+FROM joined j LEFT JOIN daily_balance lb ON lb.dt = j.last_known_dt
 ```
 
 ## Code Hash Reference
@@ -353,31 +386,63 @@ LEFT JOIN pairs_a A ON A.source = B.source
 | `^\{.*\}$` | `{"user_id":123}` | JSON payloads |
 | `^[0-9]{10}[0-9]{4,13}$` | `17112345001234567` | Timestamp + ID concatenated |
 
-## Multi-Hop Flow Tracing
+## CEX_NET_FLOW (Correct CEX Aggregation)
 
-Trace fund flows through multiple wallet hops (typically 2-4 hops to reach CEX deposits).
+For total market net CEX flows, use `ton.messages` with dual JOIN — NOT `result_cex_flows_daily`.
+
+```sql
+, ALL_CEX AS (
+    SELECT address, label FROM dune.ton_foundation.dataset_labels WHERE category = 'CEX'
+    UNION ALL
+    SELECT address, label FROM dune.ton_foundation.result_custodial_wallets WHERE category = 'CEX'
+)
+
+-- Inflow: non-CEX → CEX; Outflow: CEX → non-CEX; CEX-to-CEX excluded
+SELECT
+    DATE_TRUNC('month', m.block_date) AS month,
+    SUM(CASE WHEN dst.address IS NOT NULL AND src.address IS NULL
+        THEN CAST(m.value AS DOUBLE) / 1e9 END) AS inflow,
+    SUM(CASE WHEN src.address IS NOT NULL AND dst.address IS NULL
+        THEN CAST(m.value AS DOUBLE) / 1e9 END) AS outflow
+FROM ton.messages m
+LEFT JOIN ALL_CEX dst ON m.destination = dst.address
+LEFT JOIN ALL_CEX src ON m.source = src.address
+WHERE m.direction = 'in' AND NOT m.bounced AND m.value > 0
+  AND (dst.address IS NOT NULL OR src.address IS NOT NULL)
+  AND NOT (dst.address IS NOT NULL AND src.address IS NOT NULL)  -- ← CEX-to-CEX excluded
+GROUP BY 1
+```
+
+**Why not `result_cex_flows_daily` for aggregation?** It includes internal CEX transfers (hot wallet ↔ custodial), inflating totals 2-3x. Safe for per-address detection ("did address X deposit to CEX?"), unsafe for market-level totals.
+
+## Multi-Hop Flow Tracing (Ratio Attribution)
+
+Trace fund flows through multiple wallet hops with ratio-based attribution.
 
 **Approach:**
 1. Start from source contract, get direct outflows (hop 1)
-2. For each destination, check if it's a known entity (CEX, DeFi, labeled). If not, trace its outflows (hop 2+)
-3. Repeat until funds land in classified addresses or trail goes cold
+2. At each hop, classify destination: CEX, staking (-1:), liquid staking, DEX, bridge, or intermediate
+3. For intermediaries, calculate `source_share = source_inflow / total_inflow`
+4. Attribute each outflow proportionally: `attributed = outflow * source_share`
+5. Repeat for 3-4 hops
 
-**Techniques:**
-- Use `first_tx_sender` from `ton.accounts` as **indirect evidence** of wallet relationship — if wallet A's first_tx_sender is wallet B, they may be controlled by the same entity. NOT proof (third parties can fund fresh addresses).
-- Check destination's current balance — if near zero, the wallet forwarded everything and you need another hop.
-
-**Gotcha:** Do NOT try to do all hops in a single query. Dune will timeout. Instead:
-1. Query hop 1 outflows → save address list
-2. Classify those addresses in a separate query
-3. For unclassified addresses with ~0 balance, query hop 2 outflows
-4. Repeat as needed
-
+**CEX detection shortcut:** Use `result_cex_flows_daily` to check if an intermediate address has ever deposited to CEX — avoids extra hops through custodial wallets:
 ```sql
--- Example: Hop 1 — direct outflows from a source address
-SELECT destination, SUM(value / 1e9) AS ton_sent, COUNT(*) AS tx_count
-FROM ton.messages
-WHERE source = '0:YOUR_ADDRESS_HERE'
-  AND direction = 'in' AND NOT bounced
-  AND block_date >= DATE '2026-01-01'
-GROUP BY 1 ORDER BY 2 DESC LIMIT 50
+, cex_senders AS (
+    SELECT address FROM dune.ton_foundation.result_cex_flows_daily
+    WHERE flow = 'to_cex' AND token_address = '0:000...000' AND day >= DATE '2025-01-01'
+    GROUP BY 1
+)
 ```
+
+**Destination categories (priority order):**
+1. `-1:` prefix → Masterchain staking
+2. Known liquid staking protocols → Liquid Staking
+3. In `cex_senders` → CEX
+4. In `dataset_labels` WHERE category = 'bridge' → Bridge
+5. In `dex_trades` as seller → DEX Sell
+6. Otherwise → Intermediate (trace next hop)
+
+**Performance:** 4-hop ratio attribution runs in ~250s on Dune. Each additional hop adds ~60s. 4 hops covers 93%+ of flows for TBF-style analysis.
+
+See `examples/multi-hop-attribution.sql` for full 4-hop implementation.
