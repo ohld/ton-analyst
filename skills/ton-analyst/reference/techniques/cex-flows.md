@@ -65,7 +65,7 @@ Daily CEX deposits/withdrawals per address. ~38M rows.
 
 Safe for per-address detection ("did address X deposit to CEX?"). **UNSAFE for total market flows** — inflates 2-3x. Use `ton.messages` with dual CEX join instead (see CEX_NET_FLOW above).
 
-Source query: TBD
+Source query: [Q6871358](https://dune.com/queries/6871358)
 
 ## Related
 
