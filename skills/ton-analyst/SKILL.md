@@ -58,7 +58,8 @@ Every research report MUST:
 
 - **reference/dune/** — Dune schemas (with inline mat view docs), query patterns, dashboards, API, examples
 - **reference/ton/** — TON blockchain model, labels, address investigation, TONAPI
-- **reference/techniques/** — CEX flow analysis, multi-hop flow tracing
+- **reference/techniques/** — CEX flows, flow tracing, staking, DEX wash detection, vesting, fees, MAU measurement
+- **reference/ton/supply-tokenomics.md** — Supply structure, inflation, frozen miners, known doc errors
 
 ## External Resources
 

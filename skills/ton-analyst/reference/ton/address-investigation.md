@@ -43,7 +43,7 @@ Combine at least two of these:
 - **Transaction comments**: outgoing/incoming comments reference the entity name, bot name, or service
 - **Jetton ownership**: contract owns a jetton wallet whose master is controlled by the entity
 - **Deployer link**: contract was deployed by the same wallet that deployed other labelled addresses
-- **Cluster analysis**: ton-profiler shows the address in the same cluster as labelled addresses
+- **Cluster analysis**: on-chain graph analysis shows the address in the same funding cluster as labelled addresses
 
 ### What Does NOT Count as Proof
 
