@@ -26,4 +26,3 @@ API key stored in `$TONAPI_KEY` environment variable.
 
 - **Free tier:** 1 RPS
 - **Cache all responses to JSON** — 1000 addresses = ~20 min fetch time at 1 RPS
-- For bulk address tagging, use ton-profiler batch endpoint: `POST /api/v1/addresses/tags` (max 200 per request)
