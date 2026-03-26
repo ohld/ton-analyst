@@ -44,6 +44,7 @@ Full schemas: reference/dune/schemas/
 - Never use `UPPER()` on addresses — write addresses in full 66-char uppercase hex directly
 - User wallet addresses: `ton_address_raw_to_user_friendly(addr, false)` — non-bounceable UQ prefix
 - Embed transaction hyperlinks inside datetime columns for interactive dashboards
+- **Dune runs Trino (Presto) SQL — not Snowflake/BigQuery/Spark.** e.g. `QUALIFY` does not exist — use subquery with `ROW_NUMBER() AS rn` + `WHERE rn = 1`
 
 ## Report Format
 
