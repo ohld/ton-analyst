@@ -1,58 +1,38 @@
 # Staking Analysis
 
-How to analyze validator staking, liquid staking, and unstaking behavior on TON.
+**Dashboard (source of truth):** [TON Staking](https://dune.com/ton_foundation/staking) — staking flows, nominator pools, APY.
 
-## Elector Mechanics
+## Elector Balance vs Staker Balances
 
-Validators re-stake every ~18 hours. This means gross Elector volumes are **enormous** (tens of billions TON/month) while net flows are small (tens of millions). Always report net, not gross.
+The [Elector contract](https://github.com/ton-blockchain/ton/blob/master/crypto/smartcont/elector-code.fc) holds all staked TON. Validators re-stake every ~18 hours, so gross volumes are enormous (tens of billions TON/month) while net changes are small.
+
+**Important distinction:** Elector balance = total staked. But individual staker balances (via nominator pool contracts) may not sum to the same number due to in-flight stakes, pending rewards, and timing differences between validation rounds. Use `result_nominators_cashflow` ([schema](../dune/schemas/messages.md)) for per-staker flows.
 
 ## Unstaking Destination Tracing
 
-Most unstaking is **rotation** (validators moving between pools), not sell pressure:
+Most unstaking is **rotation** (validators moving between pools), not sell pressure. Methodology:
 
-1. Query Elector outflows for the period
-2. Trace 3-hop from Elector → validators → pools → controllers → end destination
-3. Classify destinations: staking rotation, CEX, held, vesting/multisig, DEX
-4. Use `code_hash` from `ton.accounts` to identify contract types (nominator pools, vesting wallets, etc.)
+1. Query Elector outflows → trace 3-hop through validators → pools → controllers → destination
+2. Classify by `code_hash` from `ton.accounts` ([code hash reference](../dune/query-patterns.md))
+3. ~75% = staking rotation, ~17% = CEX, rest = held/DEX/vesting
 
-**Key insight:** ~75% of unstaking goes back into staking (rotation). Only ~17% reaches CEX. Report actual sell pressure, not gross unstaking.
-
-See [flow-tracing.md](flow-tracing.md) for the multi-hop ratio attribution technique.
+See [flow-tracing.md](flow-tracing.md) for multi-hop ratio attribution.
 
 ## Liquid Staking Detection
 
-**CRITICAL:** Users send TON to **pool contracts**, not jetton masters.
+Users send TON to **pool contracts**, not jetton masters:
 
 ```
-❌ tsTON jetton master address — this is the token issuer, NOT where deposits go
+❌ tsTON jetton master — token issuer, NOT deposit target
 ✅ dataset_labels WHERE category = 'liquid-staking' — 26 addresses, 6 protocols
 ```
 
-Known protocols: TonStakers (tsTON), Bemo (stTON), Hipo (hTON), and others in `dataset_labels`.
+Protocols: [TonStakers](https://tonstakers.com) (tsTON), [Bemo](https://bemo.finance) (stTON), [Hipo](https://hipo.finance) (hTON).
 
-## Cross-Chain APY Comparison Framework
+## Cross-Chain APY Comparison
 
-When comparing staking yields across chains:
+Always compare **real yield** (nominal APY minus inflation), not headline numbers. A 20% APY with 15% inflation is worse than 3% with 0.5%. Key variables: staking ratio (higher → lower APY), inflation model (perpetual vs halving), and whether the chain is deflationary (BNB burns).
 
-| Metric | What it means | Pitfall |
-|--------|--------------|---------|
-| Nominal APY | Headline staking return | Meaningless without inflation context |
-| Inflation rate | Protocol token emission | Some chains are deflationary (BNB burns) |
-| Real yield | Nominal APY - inflation | The only comparable metric |
-| Staking ratio | % of supply staked | Affects yield (higher ratio → lower APY) |
+## Future Work
 
-Always compare **real yield** (nominal minus inflation), not headline APY. A 20% APY with 15% inflation is worse than 3% APY with 0.5% inflation.
-
-## Pitfalls
-
-- **Gross ≠ net.** Elector processes billions monthly. Net flow = millions.
-- **Rotation ≠ selling.** Most unstaking is pool rebalancing.
-- **Liquid staking pool ≠ master.** Deposits go to pool contracts.
-- **Seasonal events.** Validator unstaking can spike around holidays (e.g., Christmas 2025).
-
-## Related
-
-- [cex-flows.md](cex-flows.md) — unstaking → CEX is a subset of CEX inflows
-- [flow-tracing.md](flow-tracing.md) — multi-hop attribution technique
-- [../ton/blockchain.md](../ton/blockchain.md) — Elector and staking basics
-- [../dune/dashboards.md](../dune/dashboards.md) — Staking dashboard
+Top stakers include unlabeled wallets — labeling them would improve flow attribution accuracy. See [address-investigation.md](../ton/address-investigation.md) for the labeling workflow.

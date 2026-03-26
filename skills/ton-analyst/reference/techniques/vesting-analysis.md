@@ -1,64 +1,34 @@
 # Vesting & Locker Analysis
 
-How to analyze TON Believers Fund (TBF) and other vesting/locker contracts.
+TON has significant locked supply in two main vesting mechanisms: TON Believers Fund and Telegram vesting contracts.
 
-## TBF Contract Mechanics
+## TON Believers Fund (TBF)
 
-- **Contract:** [locker-contract](https://github.com/ton-blockchain/locker-contract)
-- **Lock period:** 2 years (Oct 2023 → Oct 2025)
-- **Vesting:** 36 monthly payments after lock expires
-- **APY:** ~7% (rewards deposited by external wallets, not from staking)
+- **Contract source:** [ton-blockchain/locker-contract](https://github.com/ton-blockchain/locker-contract)
+- **Lock:** 2 years (Oct 2023 → Oct 2025), then 36 monthly vesting payments
+- **APY:** ~7% (deposited via tx comment `"r"` by external wallets, not from staking)
+- **Dashboard:** [TON Believers Fund](https://dune.com/ton_foundation/ton-believers-fund)
 
-### Transaction Comments
+Transaction comments: `"d"` = deposit, `"w"` = withdraw, `"r"` = reward. Filter in `ton.messages`.
 
-| Comment | Meaning |
-|---------|---------|
-| `"d"` | Deposit — user locks TON |
-| `"w"` | Withdraw — user claims unlocked TON |
-| `"r"` | Reward — external wallet deposits APY reward |
-
-Filter by comment in `ton.messages` to classify flows.
-
-## Claim Rate Measurement
-
-Not all unlocked TON gets claimed. Measure:
+### Sell Pressure Estimation
 
 ```
-Claim rate = Actually withdrawn / Total unlockable
-```
-
-This is the key metric for estimating real sell pressure vs theoretical maximum.
-
-## Destination Attribution
-
-Use 4-hop ratio attribution (see [flow-tracing.md](flow-tracing.md)) to trace where withdrawn TON goes:
-
-1. Direct CEX deposits (1-hop)
-2. Staking (validator pools, liquid staking)
-3. Held in wallets (check balance vs received — if balance > 90% of received, it's held)
-4. DEX sells
-5. Multi-hop CEX (2-4 hops through intermediaries)
-
-### Forwarding Detection
-
-Wallets with balance < 10% of total received are **forwarders** — trace one more hop. This catches intermediary wallets used for trace-breaking.
-
-## Sell Pressure Estimation
-
-```
-Theoretical max sell pressure = Monthly unlock amount
+Theoretical max = Monthly unlock amount
 Actual sell pressure = Claimed amount × CEX deposit rate
 ```
 
-Actual is typically much lower than theoretical (historically ~12% claim rate × ~50% to CEX = ~6% of theoretical).
+Not all unlocked TON gets claimed — measure claim rate (historically ~12%). Use 4-hop ratio attribution ([flow-tracing.md](flow-tracing.md)) to trace destinations. Wallets with balance < 10% of received are forwarders — trace one more hop.
+
+## Telegram Vesting Contracts
+
+- **Contract source:** [ton-blockchain/vesting-contract](https://github.com/ton-blockchain/vesting-contract)
+- **Parameters:** 1440-day duration, 360-day cliff
+- **Detection:** Identify via `code_hash` in `ton.accounts` (see [query-patterns.md](../dune/query-patterns.md) code hash reference)
+- **Deployer identification:** Find the address that deployed these contracts by checking the first inbound message to each vesting contract. Multiple deployers exist — Telegram uses specific deployer addresses.
+
+**Caveat:** The vesting contract is open-source. Other entities also deploy it with different parameters — don't assume all vesting contracts are Telegram's. Verify the deployer.
 
 ## Liquid Staking Gotcha
 
-See [staking-analysis.md](staking-analysis.md) — deposits go to **pool contracts**, not jetton masters. Use `dataset_labels WHERE category = 'liquid-staking'` for detection.
-
-## Related
-
-- [flow-tracing.md](flow-tracing.md) — multi-hop ratio attribution
-- [staking-analysis.md](staking-analysis.md) — liquid staking detection
-- [cex-flows.md](cex-flows.md) — CEX destination classification
-- [../dune/dashboards.md](../dune/dashboards.md) — Believers Fund dashboard
+BF recipients sometimes send to liquid staking. Deposits go to **pool contracts**, not jetton masters — see [staking-analysis.md](staking-analysis.md).

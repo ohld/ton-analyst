@@ -17,7 +17,7 @@ Use Dune query on `ton.latest_balance` + classification CTEs from [query-pattern
 
 ## Inflation Mechanics
 
-TON has **perpetual** block rewards (no halving, no end date):
+TON has **perpetual** block rewards (no halving, no end date). See [Elector source code](https://github.com/ton-blockchain/ton/blob/master/crypto/smartcont/elector-code.fc) for reward distribution logic.
 
 | Component | Amount | Period |
 |-----------|--------|--------|
@@ -34,9 +34,9 @@ TON has **perpetual** block rewards (no halving, no end date):
 
 - **Count:** 171 addresses
 - **Total:** ~1,081M TON (~21% of supply)
-- **Status:** Frozen by governance vote (Feb 21, 2023) for 48 months
+- **Status:** Frozen by [governance vote](https://t.me/tonblockchain/223) (Feb 21, 2023) for 48 months. See [Blockworks coverage](https://blockworks.co/news/ton-votes-to-freeze-inactive-mining-wallets), [Cointelegraph coverage](https://cointelegraph.com/news/ton-community-votes-burn-freeze-inactive-wallets)
 - **Expected unlock:** ~Feb 2027 (requires another governance vote)
-- **Keys likely lost:** Most of these addresses have never been active since mining ended. If keys are lost, these TON are effectively burned.
+- **Keys likely lost:** Most addresses have never been active since mining ended. If keys are lost, these TON are effectively burned.
 
 ## Known Errors in Official Documentation
 
@@ -53,9 +53,4 @@ Corrections to commonly cited sources:
 - **Inflation vs circulating.** Always specify denominator: % of total supply or % of circulating.
 - **Frozen ≠ burned.** Frozen miners could theoretically unlock. Don't count them as burned.
 
-## Related
-
-- [../techniques/vesting-analysis.md](../techniques/vesting-analysis.md) — BF and vesting tracking
-- [../techniques/staking-analysis.md](../techniques/staking-analysis.md) — staking dynamics
-- [../dune/query-patterns.md](../dune/query-patterns.md) — ADDRESS_CLASSIFICATION CTE
-- [../dune/dashboards.md](../dune/dashboards.md) — Supply dashboard
+See also: [vesting analysis](../techniques/vesting-analysis.md), [staking analysis](../techniques/staking-analysis.md), [ADDRESS_CLASSIFICATION CTE](../dune/query-patterns.md), [Dune dashboards](../dune/dashboards.md).

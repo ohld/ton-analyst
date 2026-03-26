@@ -11,7 +11,7 @@ TON fee structure and cross-chain comparison methodology.
 | DEX swap | 0.06-0.13 | ~$0.10 |
 | Complex contract call | 0.06+ | ~$0.08+ |
 
-TON uses a **deterministic fee model** — no fee market, no auction, no priority tips. Fees don't spike under congestion, unlike Ethereum or Solana.
+TON uses a **deterministic fee model** — no fee market, no auction, no priority tips. Fees don't spike under congestion, unlike Ethereum or Solana. See [TON fees documentation](https://docs.ton.org/develop/howto/fees-low-level).
 
 ## Cross-Chain Comparison Framework
 
@@ -39,7 +39,4 @@ For agent-to-agent payments (x402, micropayments):
 - Jetton transfers ($0.02) — too expensive for frequent operations
 - On-chain logic ($0.08+) — impractical for per-request billing
 
-## Related
-
-- [../ton/blockchain.md](../ton/blockchain.md) — TON message passing model
-- [../dune/dashboards.md](../dune/dashboards.md) — fee-related queries
+See also: [TON message passing model](../ton/blockchain.md), [Dune dashboards](../dune/dashboards.md) for fee queries.

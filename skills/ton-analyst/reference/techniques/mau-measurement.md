@@ -1,45 +1,20 @@
-# MAU Measurement
+# Active User Measurement
 
-How to measure Monthly Active Users for TON ecosystem projects using on-chain data.
+## Custodial Wallet Inflation
 
-## Two-Track Methodology
+Approximately **half of new TON wallets** are custodial deposit addresses created by exchanges and payment providers (one wallet per user deposit, not reused). Similarly, ~1/3 of weekly active wallets are custodial. This is normal across all chains, but means raw wallet counts overstate real user numbers.
 
-Different detection methods for different project types:
+**Dashboard:** [TON Weekly](https://dune.com/ton_foundation/ton-weekly) — WAU and new users split by custodial vs non-custodial.
+- [Query 5052073 / viz 8343735](https://dune.com/queries/5052073/8343735) — Weekly Active Users (custodial vs non-custodial)
+- [Query 5052073 / viz 8343340](https://dune.com/queries/5052073/8343340) — New Active Users breakdown
 
-### Track 1: CEX Projects
+## Measuring Per-Project MAU
 
-Use `result_cex_flows_daily` materialized view (10.8M known deposit/withdrawal addresses). Count unique wallet addresses that deposited to or withdrew from each exchange in the period.
+Two-track approach depending on project type:
 
-### Track 2: Non-CEX Projects
+- **CEX projects:** count unique wallets in `result_cex_flows_daily` per exchange
+- **Non-CEX:** join `ton.messages` with `dataset_labels`, count unique counterparty wallets
 
-Join `ton.messages` with `dataset_labels` to find interactions with labeled project addresses. Count unique counterparty wallets.
+Exclude internal (contract-to-contract) messages. See [../ton/labels.md](../ton/labels.md) for label coverage.
 
-```
-MAU = COUNT(DISTINCT wallet) WHERE wallet interacted with project addresses in 30-day window
-```
-
-### Internal Transaction Exclusion
-
-Exclude contract-to-contract interactions (internal messages). Only count transactions initiated by user wallets to avoid inflating counts with automated protocol operations.
-
-## Caveats
-
-- **TON messages only.** Jetton transfers and NFT operations are not captured in basic `ton.messages` queries. This undercounts DeFi and NFT project users.
-- **Label completeness.** Unlabeled projects are invisible. MAU rankings are bounded by label coverage in `dataset_labels`.
-- **Value > 0 filter.** Excluding zero-value transactions misses some interaction types (e.g., governance votes, state updates).
-- **Single snapshot.** This methodology gives a point-in-time view, not a rolling average. Run monthly for trends.
-- **DeFi pool gap.** DEX users may interact with pool contracts that aren't labeled to the DEX. Use `result_dex_pools_latest` to fill this gap.
-
-## Validation
-
-Cross-check results against:
-- Public bot statistics (Telegram bot MAU via BotFather)
-- Exchange-reported user counts (where available)
-- DEX frontend analytics (StonFi/DeDust public stats)
-
-## Related
-
-- [cex-flows.md](cex-flows.md) — CEX address detection
-- [../dune/schemas/messages.md](../dune/schemas/messages.md) — messages table structure
-- [../ton/labels.md](../ton/labels.md) — label categories and coverage
-- [../dune/dashboards.md](../dune/dashboards.md) — ecosystem dashboards
+**Caveats:** `ton.messages` only (no jettons/NFTs), unlabeled projects are invisible, DEX users may hit pool contracts not labeled to the DEX — use `result_dex_pools_latest` to fill gaps.
