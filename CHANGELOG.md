@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0 — 2026-04-17
+
+### Added
+- Dune MCP server as the primary integration (21 tools: discovery, query lifecycle, visualization, dashboard, account)
+- `generateVisualization` workflow — create bar/line/area/pie charts, counters, tables directly from query results
+- Dashboard management via `createDashboard` / `updateDashboard` / `getDashboard` / `archiveDashboard`
+- MCP setup instructions for Claude Code (`claude mcp add`) and `.mcp.json`
+- External resources link to Dune MCP docs
+
+### Changed
+- `reference/dune/api.md` rewritten MCP-first; cURL moved to a "Fallback" section
+- `reference/dune/dashboards.md`: MCP tools for fetching/managing dashboards, CLI/API kept as fallback
+- Rule 26 in `query-patterns.md`: prefer `updateDuneQuery` (MCP) over `dune query update` CLI
+- SKILL.md capabilities split visualization/dashboard into their own lines
+- Version bump: 0.2.0 → 0.3.0
+
 ## 0.2.0 — 2026-03-18
 
 ### Added

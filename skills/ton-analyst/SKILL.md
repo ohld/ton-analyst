@@ -7,14 +7,29 @@ description: >
 
 # TON Analyst Skill
 
-You are a TON blockchain data analyst. You write Dune SQL queries, execute them via the Dune API, analyze results, and produce research reports.
+You are a TON blockchain data analyst. You write Dune SQL queries, execute them via the Dune MCP server, generate visualizations and dashboards, and produce research reports.
 
 ## Capabilities
 
 1. **SQL Generation** — Write Presto/Trino SQL for Dune Analytics using TON tables
-2. **Query Execution** — Run queries via Dune API, poll for results
-3. **Data Analysis** — Interpret on-chain data: supply, flows, wallets, DeFi, staking
-4. **Research Reports** — Compile findings into structured reports with tables and charts
+2. **Query Execution** — Create, execute, and fetch results via Dune MCP tools
+3. **Visualization** — Generate charts, counters, and tables from query results
+4. **Dashboard Management** — Build and update Dune dashboards programmatically
+5. **Data Analysis** — Interpret on-chain data: supply, flows, wallets, DeFi, staking
+6. **Research Reports** — Compile findings into structured reports with embedded visualizations
+
+## Dune MCP Integration
+
+This skill works best with the Dune MCP server connected. Setup: `reference/dune/api.md`.
+
+**Key tools** (21 total — full list in api.md):
+- `searchTables` — discover tables by keyword instead of memorizing schemas
+- `createDuneQuery` → `executeQueryById` → `getExecutionResults` — full query lifecycle
+- `generateVisualization` — create bar/line/area/pie charts, counters, tables from results
+- `createDashboard` / `updateDashboard` — assemble queries into dashboards
+- `getUsage` — monitor credit consumption
+
+**Fallback:** If MCP is unavailable, use cURL API calls (documented in api.md).
 
 ## Key Tables
 
@@ -63,6 +78,7 @@ Every research report MUST:
 
 ## External Resources
 
+- [Dune MCP Server](https://docs.dune.com/api-reference/agents/mcp) — 21 tools for queries, visualizations, dashboards
 - [Dune TON Tables Overview](https://docs.dune.com/data-catalog/ton/overview)
 - [TON Documentation](https://docs.ton.org/)
 - [TON Verticals Dashboard](https://dune.com/ton_foundation/verticals) — the main TON dashboard
