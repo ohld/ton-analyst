@@ -29,7 +29,7 @@ CTEs, classification logic, and conventions for TON Dune queries.
 23. **NEVER filter `sale_type = 'sale'` for total sales volume.** `type = 'sale'` already means completed sale — it covers BOTH fixed-price (`sale_type='sale'`) AND auction (`sale_type='auction'`). Adding `AND sale_type = 'sale'` excludes all auction completions — which is ~87% of username sales by count and ~96% by volume. Bids are `type = 'bid'`, not `type = 'sale'`. For auction sales, `trace_id` may be NULL — use NFT item address link as fallback. See examples/fragment-username-sales.sql.
 24. **Auction sales have NULL `trace_id`.** Use COALESCE to fall back to NFT item address for transaction links: `COALESCE('https://tonviewer.com/transaction/' || LOWER(TO_HEX(FROM_BASE64(E.trace_id))), 'https://tonviewer.com/' || ton_address_raw_to_user_friendly(E.nft_item_address, true))`.
 25. **User wallet addresses: use non-bounceable (UQ).** `ton_address_raw_to_user_friendly(addr, false)` for user wallets — UQ prefix is the standard for displaying wallet addresses of real users. Bounceable (EQ) is for smart contracts.
-26. **Dune CLI for query updates.** `dune query update <id> --sql "..." --name "..." --tags "x,y"` works. The REST API PATCH endpoint is broken for name/SQL updates — always use CLI.
+26. **Query updates: prefer MCP `updateDuneQuery`, fallback to CLI.** `updateDuneQuery` (MCP) handles SQL/name/tags cleanly. If MCP is unavailable, use `dune query update <id> --sql "..." --name "..." --tags "x,y"`. Never use REST API PATCH — it's broken for name/SQL updates.
 
 ## ALL_LABELS + REAL_USERS
 
