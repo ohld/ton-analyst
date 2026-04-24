@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Install the `ton` CLI shipped with this skill.
+# - Creates a Python venv at skills/ton-analyst/.venv
+# - Installs pinned deps from requirements.txt
+# - Writes a wrapper at ~/.local/bin/ton
+#
+# Usage:  ./setup            (install / re-install)
+#         ./setup --uninstall  (remove wrapper, keep venv)
+set -euo pipefail
+
+SKILL_DIR="$(cd "$(dirname "$0")" && pwd)"
+VENV="$SKILL_DIR/.venv"
+BIN="$HOME/.local/bin/ton"
+
+uninstall() {
+  if [ -e "$BIN" ] || [ -L "$BIN" ]; then
+    rm -f "$BIN"
+    echo "removed $BIN"
+  fi
+  echo "done (venv at $VENV left in place)."
+}
+
+if [ "${1:-}" = "--uninstall" ]; then
+  uninstall
+  exit 0
+fi
+
+command -v python3 >/dev/null || { echo "python3 required" >&2; exit 1; }
+python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)" \
+  || { echo "python 3.10+ required (got $(python3 --version))" >&2; exit 1; }
+
+if [ ! -d "$VENV" ]; then
+  python3 -m venv "$VENV"
+fi
+
+"$VENV/bin/pip" install --quiet --upgrade pip
+"$VENV/bin/pip" install --quiet -r "$SKILL_DIR/requirements.txt"
+
+mkdir -p "$(dirname "$BIN")"
+cat > "$BIN" <<EOF
+#!/usr/bin/env bash
+exec "$VENV/bin/python" "$SKILL_DIR/bin/ton" "\$@"
+EOF
+chmod +x "$BIN"
+
+echo "installed: $BIN -> $SKILL_DIR/bin/ton (venv: $VENV)"
+echo
+echo "Try:"
+echo "  ton acc 0:CA1D9EDEEF40B3A9DBD9082F3767859547C3CE0BF641D09D58E33A3CF06FB309"
+echo "  ton tx  0:CA1D9EDEEF40B3A9DBD9082F3767859547C3CE0BF641D09D58E33A3CF06FB309 --limit 10"
+echo
+echo "Optional env vars:"
+echo "  TONAPI_API_KEY      bearer token for higher rate limits"
+echo "  TON_LABELS_CACHE    default ~/.cache/ton-labels (auto-cloned on first label lookup)"
