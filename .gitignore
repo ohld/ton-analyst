@@ -3,3 +3,4 @@
 *.swp
 
 skills/ton-analyst/.venv/
+__pycache__/
