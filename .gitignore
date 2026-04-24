@@ -1,3 +1,6 @@
 .DS_Store
 .obsidian/
 *.swp
+
+# setup artifacts
+skills/ton-analyst/.venv/

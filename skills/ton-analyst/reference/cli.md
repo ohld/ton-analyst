@@ -166,14 +166,13 @@ Pass `--limit` (default 20) to cap.
 
 ## Measured savings
 
-Three demos from today's research (`2026-04-24 Probe Wallet Labeling`),
-measured on a live terminal:
+Three demos from real research addresses, measured on a live terminal (2026-04-24):
 
-| Question | Old pattern | New pattern | Raw JSON bytes | CLI output bytes |
-|----------|-------------|-------------|----------------|------------------|
-| Is `0:CA1D9EDE...` a known CEX? | `curl .../accounts/{a}` + `python3 -c "d=json.load(sys.stdin); print(d['name'])"` | `ton label 0:CA1D9EDE...` | 164 → `...name=Binance Hot Wallet,interfaces=wallet_highload_v3r1...` | **~100** |
-| Top 20 large outflows from `UQArn1...` since 2024 | `curl .../transactions?limit=100` (20-30 KB) + inline Python filter (~800 chars) | `ton tx 0:2B9F5321... --out --min-value 5 --limit 20 --since 2024-01-01` | **386,215** | **1,785** (216× reduction) |
-| Deployer chain for `UQDfE7Ws...` | paginate tx history manually + label each hop | `ton chain 0:DF13... --depth 3` | 19 (empty) → no walk needed | 84 |
+| Question | Command | Raw JSON bytes | CLI bytes | Ratio |
+|----------|---------|----------------|-----------|-------|
+| Top 20 large outflows from a treasury wallet since 2024 | `ton tx 0:2B9F5321... --out --min-value 5 --limit 20 --since 2024-01-01` | 386,215 | 1,785 | **216×** |
+| Is `0:CA1D9EDE...` a known CEX? | `ton label 0:CA1D9EDE...` (cascades acc → dns backresolve → ton-labels cache) | 533 | 100 | **5×** |
+| Trace funding chain 3 hops | `ton chain 0:2B9F5321... --depth 3` (stops at hop 1 on "Wallet Bot 2") | ~770 KB (2 tx pages) | 170 | **~4,600×** |
 
 Aggregate across a typical labeling research (10-15 TONAPI queries + 3-5 label
 checks + 1-2 deployer walks): **~10 fewer Bash calls and ~30-40 KB less JSON**
