@@ -1,0 +1,910 @@
+#!/usr/bin/env python3
+"""
+ton — a lightweight CLI for TONAPI, address labels, and enrichment lookups.
+
+Designed for Claude Code agents and terminal use: terse, one-line-per-record
+output by default, with `--json` escape hatch. Avoids dumping large raw JSON
+into the agent's context window.
+
+Subcommands:
+  addr     Normalize / convert address format (raw / UQ / EQ)
+  acc      Account summary: balance, interface, name, status
+  tx       Transaction list with filters (direction, min value, since, dest)
+  dns      DNS resolve (name -> address) or reverse (address -> domains)
+  profile  Address profile lookup (cluster, tags, related addresses)
+  label    Quick label check: TONAPI name -> DNS -> local ton-labels -> profile
+  chain    Walk the funding/deployer chain; stop at first labeled address
+  jetton   Jetton balances summary
+
+Env vars (all optional unless noted):
+  TONAPI_KEY                bumps rate limits on api.tonapi.io (recommended)
+  TON_PROFILER_API_TOKEN    required for `ton profile` / label fallback
+  TON_PROFILER_API_URL      default https://profiler.swanrate.com
+  TON_LABELS_CACHE          default ~/.cache/ton-labels (auto-cloned from
+                            github.com/ton-studio/ton-labels; auto-refreshes
+                            after 7 days or with `ton label --refresh`)
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Iterable
+
+try:
+    import requests
+except ImportError:
+    sys.stderr.write("ton: missing dependency 'requests' (pip install requests)\n")
+    sys.exit(2)
+
+try:
+    from pytoniq_core import Address
+except ImportError:
+    sys.stderr.write(
+        "ton: missing dependency 'pytoniq_core' (pip install pytoniq-core)\n"
+    )
+    sys.exit(2)
+
+
+TONAPI_BASE = "https://tonapi.io"
+PROFILER_DEFAULT = "https://profiler.swanrate.com"
+USER_AGENT = "ton-cli/0.1 (+https://github.com/ohld/ton-analyst)"
+
+# ---------- shared helpers ----------
+
+
+def die(msg: str, code: int = 1) -> None:
+    sys.stderr.write(f"ton: {msg}\n")
+    sys.exit(code)
+
+
+def normalize_address(s: str) -> Address:
+    """Accept raw / UQ / EQ / -1:... and return a pytoniq_core Address."""
+    s = s.strip()
+    try:
+        return Address(s)
+    except Exception as e:
+        die(f"invalid address {s!r}: {e}")
+
+
+def raw_upper(a: Address) -> str:
+    return a.to_str(False).upper()
+
+
+def uq(a: Address) -> str:
+    return a.to_str(True, is_bounceable=False, is_url_safe=True)
+
+
+def eq(a: Address) -> str:
+    return a.to_str(True, is_bounceable=True, is_url_safe=True)
+
+
+def tonapi_get(path: str, params: dict | None = None, timeout: int = 20) -> Any:
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    token = os.environ.get("TONAPI_KEY") or os.environ.get("TONAPI_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    url = f"{TONAPI_BASE}{path}"
+    try:
+        r = requests.get(url, headers=headers, params=params, timeout=timeout)
+    except requests.RequestException as e:
+        die(f"TONAPI request failed: {e}")
+    if r.status_code == 404:
+        die(f"TONAPI 404: {url}", code=4)
+    if r.status_code == 429:
+        die("TONAPI rate-limited (set TONAPI_KEY for higher limits)", code=5)
+    if r.status_code >= 400:
+        die(f"TONAPI {r.status_code}: {r.text[:200]}")
+    try:
+        return r.json()
+    except ValueError:
+        die(f"TONAPI returned non-JSON ({r.status_code}): {r.text[:120]}")
+
+
+def profiler_req(
+    method: str, path: str, payload: dict | None = None, timeout: int = 15
+) -> Any:
+    token = os.environ.get("TON_PROFILER_API_TOKEN")
+    if not token:
+        die("TON_PROFILER_API_TOKEN not set (required for profile lookup)")
+    base = os.environ.get("TON_PROFILER_API_URL") or PROFILER_DEFAULT
+    headers = {
+        "X-API-Token": token,
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json",
+    }
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+    url = f"{base.rstrip('/')}{path}"
+    try:
+        r = requests.request(
+            method,
+            url,
+            headers=headers,
+            data=json.dumps(payload) if payload is not None else None,
+            timeout=timeout,
+        )
+    except requests.RequestException as e:
+        die(f"profile lookup failed: {e}")
+    if r.status_code == 404:
+        return None
+    if r.status_code >= 400:
+        die(f"profile lookup {r.status_code}: {r.text[:200]}")
+    try:
+        return r.json()
+    except ValueError:
+        die(f"profile lookup non-JSON: {r.text[:120]}")
+
+
+def fmt_ts(utime_or_iso: Any) -> str:
+    if utime_or_iso is None:
+        return "-"
+    try:
+        ts = int(utime_or_iso)
+        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+    except (TypeError, ValueError):
+        return str(utime_or_iso)
+
+
+def nano_to_ton(v: Any) -> float:
+    try:
+        return int(v) / 1e9
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def parse_since(s: str | None) -> int | None:
+    if not s:
+        return None
+    try:
+        dt = datetime.strptime(s, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        return int(dt.timestamp())
+    except ValueError:
+        die(f"--since must be YYYY-MM-DD, got {s!r}")
+
+
+def print_json(obj: Any) -> None:
+    json.dump(obj, sys.stdout, indent=2, ensure_ascii=False, default=str)
+    sys.stdout.write("\n")
+
+
+def short_addr(raw_or_friendly: str, width: int = 8) -> str:
+    """For human-readable columns only; full address still printed elsewhere."""
+    s = raw_or_friendly
+    if not s:
+        return "-"
+    if len(s) <= width * 2 + 3:
+        return s
+    return f"{s[:width]}...{s[-width:]}"
+
+
+# ---------- addr ----------
+
+
+def cmd_addr(args: argparse.Namespace) -> None:
+    a = normalize_address(args.address)
+    if args.json:
+        print_json(
+            {
+                "raw": raw_upper(a),
+                "uq": uq(a),
+                "eq": eq(a),
+                "workchain": a.wc,
+            }
+        )
+        return
+    print(f"raw\t{raw_upper(a)}")
+    print(f"uq\t{uq(a)}")
+    print(f"eq\t{eq(a)}")
+    print(f"wc\t{a.wc}")
+
+
+# ---------- acc ----------
+
+
+def cmd_acc(args: argparse.Namespace) -> None:
+    a = normalize_address(args.address)
+    data = tonapi_get(f"/v2/accounts/{raw_upper(a)}")
+    if args.json:
+        print_json(data)
+        return
+    bal_ton = nano_to_ton(data.get("balance"))
+    ifaces = ",".join(data.get("interfaces") or []) or "-"
+    name = data.get("name") or "-"
+    status = data.get("status") or "-"
+    is_scam = data.get("is_scam")
+    is_wallet = data.get("is_wallet")
+    # Single-line summary first
+    print(
+        "\t".join(
+            [
+                f"addr={uq(a)}",
+                f"balance={bal_ton:.2f} TON",
+                f"status={status}",
+                f"name={name}",
+                f"interfaces={ifaces}",
+                f"scam={is_scam}",
+                f"wallet={is_wallet}",
+            ]
+        )
+    )
+    # Then a details block
+    print(f"raw\t{raw_upper(a)}")
+    print(f"eq\t{eq(a)}")
+
+
+# ---------- tx ----------
+
+
+def _iter_transactions(
+    raw_addr: str, limit: int, before_lt: int | None = None
+) -> Iterable[dict]:
+    """Yield transactions via /blockchain/accounts/{addr}/transactions; paginate
+    until limit reached. TONAPI caps per-request at 1000 but we keep it modest."""
+    remaining = limit
+    cursor = before_lt
+    while remaining > 0:
+        page = min(remaining, 100)
+        params = {"limit": page}
+        if cursor:
+            params["before_lt"] = cursor
+        data = tonapi_get(
+            f"/v2/blockchain/accounts/{raw_addr}/transactions", params=params
+        )
+        txs = data.get("transactions") or []
+        if not txs:
+            return
+        for tx in txs:
+            yield tx
+            remaining -= 1
+            if remaining <= 0:
+                return
+        cursor = txs[-1].get("lt")
+        if not cursor:
+            return
+        time.sleep(0.15)  # gentle on public rate limit
+
+
+def cmd_tx(args: argparse.Namespace) -> None:
+    a = normalize_address(args.address)
+    raw = raw_upper(a)
+    since_ts = parse_since(args.since)
+    dest_raw = raw_upper(normalize_address(args.dest)) if args.dest else None
+    rows: list[dict] = []
+    json_rows: list[dict] = []
+    for tx in _iter_transactions(raw, args.limit * 3 if args.min_value else args.limit):
+        # Each tx has at most one in_msg and 0+ out_msgs. Build one row per msg
+        # that matches the direction filter, keyed on the tx timestamp.
+        utime = tx.get("utime")
+        if since_ts is not None and utime and utime < since_ts:
+            break  # transactions are descending by lt; can stop
+        in_msg = tx.get("in_msg") or {}
+        out_msgs = tx.get("out_msgs") or []
+        candidates: list[tuple[str, dict]] = []
+        if not args.out and in_msg.get("source"):
+            candidates.append(("IN", in_msg))
+        if not args.inflow:
+            for m in out_msgs:
+                candidates.append(("OUT", m))
+        for direction, msg in candidates:
+            value_nano = msg.get("value") or 0
+            value_ton = nano_to_ton(value_nano)
+            if args.min_value and value_ton < args.min_value:
+                continue
+            if direction == "IN":
+                cp = (msg.get("source") or {}).get("address") or "-"
+            else:
+                cp = (msg.get("destination") or {}).get("address") or "-"
+            if dest_raw and direction == "OUT" and cp.upper() != dest_raw:
+                continue
+            comment = ""
+            body = msg.get("decoded_body") or {}
+            if isinstance(body, dict):
+                comment = body.get("text") or ""
+            op = msg.get("decoded_op_name") or ""
+            row = {
+                "ts": fmt_ts(utime),
+                "direction": direction,
+                "value_ton": round(value_ton, 4),
+                "counterparty_raw": cp,
+                "counterparty_uq": (
+                    uq(Address(cp)) if cp and cp != "-" else "-"
+                ),
+                "op": op,
+                "comment": comment,
+                "tx_hash": tx.get("hash"),
+            }
+            rows.append(row)
+            json_rows.append(row)
+            if len(rows) >= args.limit:
+                break
+        if len(rows) >= args.limit:
+            break
+
+    if args.json:
+        print_json(json_rows)
+        return
+    # terse tab-separated: ts, direction, value_ton, counterparty_uq, op, comment
+    if not rows:
+        print("# no matching transactions")
+        return
+    print("# ts\tdir\tvalue_ton\tcounterparty\top\tcomment")
+    for r in rows:
+        com = (r["comment"] or "").replace("\t", " ").replace("\n", " ")
+        if len(com) > 80:
+            com = com[:77] + "..."
+        print(
+            "\t".join(
+                [
+                    r["ts"],
+                    r["direction"],
+                    f"{r['value_ton']:.4f}",
+                    r["counterparty_uq"],
+                    r["op"] or "-",
+                    com or "-",
+                ]
+            )
+        )
+
+
+# ---------- dns ----------
+
+
+def cmd_dns(args: argparse.Namespace) -> None:
+    target = args.target.strip()
+    # Detect: .ton/.t.me domain -> forward resolve; else -> backresolve
+    if "." in target and not target.startswith(("0:", "-1:")) and not target[0:2] in (
+        "UQ",
+        "EQ",
+        "0Q",
+        "kQ",
+    ):
+        data = tonapi_get(f"/v2/dns/{target}")
+        if args.json:
+            print_json(data)
+            return
+        item = data.get("item") or {}
+        owner = (item.get("owner") or {}).get("address") or "-"
+        owner_uq = uq(Address(owner)) if owner and owner != "-" else "-"
+        expires = data.get("expiring_at")
+        print(f"domain\t{data.get('name') or target}")
+        print(f"owner\t{owner_uq}")
+        print(f"owner_raw\t{owner.upper() if owner != '-' else '-'}")
+        print(f"nft_item\t{(item.get('address') or '-').upper()}")
+        print(f"expires\t{fmt_ts(expires)}")
+    else:
+        a = normalize_address(target)
+        data = tonapi_get(f"/v2/accounts/{raw_upper(a)}/dns/backresolve")
+        if args.json:
+            print_json(data)
+            return
+        domains = data.get("domains") or []
+        if not domains:
+            print("# no reverse DNS records")
+            return
+        for d in domains:
+            print(d)
+
+
+# ---------- profile ----------
+
+
+def cmd_profile(args: argparse.Namespace) -> None:
+    a = normalize_address(args.address)
+    data = profiler_req("GET", f"/api/v1/address/{raw_upper(a)}")
+    if data is None:
+        die("no profile data for this address", code=4)
+    if args.json:
+        print_json(data)
+        return
+    related = data.get("related_addresses") or []
+    if args.related_only:
+        for r in related:
+            addr = r.get("address_raw") or r.get("address_friendly")
+            if addr:
+                print(addr.upper())
+        return
+    cluster = data.get("cluster_name") or "-"
+    csize = data.get("cluster_size") or 1
+    tags = data.get("tags") or []
+    tag_s = ",".join(t.get("tag", "") for t in tags[:8]) or "-"
+    flags = data.get("flags") or {}
+    flag_s = ",".join(k for k, v in flags.items() if v) or "-"
+    print(f"cluster\t{cluster}")
+    print(f"cluster_size\t{csize}")
+    print(f"tags\t{tag_s}")
+    print(f"flags\t{flag_s}")
+    if related:
+        print(f"# {len(related)} related addresses")
+        for r in related[: args.limit]:
+            raw = r.get("address_raw") or "-"
+            alias = r.get("alias") or "-"
+            rtypes = ",".join(r.get("relation_types") or []) or "-"
+            rtags = ",".join(t.get("tag", "") for t in (r.get("tags") or [])[:3]) or "-"
+            try:
+                frnd = uq(Address(raw)) if raw != "-" else "-"
+            except Exception:
+                frnd = "-"
+            print(f"{frnd}\t{alias}\t{rtypes}\t{rtags}")
+
+
+# ---------- label ----------
+
+
+TON_LABELS_REPO_URL = "https://github.com/ton-studio/ton-labels.git"
+TON_LABELS_REFRESH_DAYS = 7
+
+
+def _labels_cache_path() -> Path:
+    return Path(
+        os.environ.get("TON_LABELS_CACHE")
+        or os.path.expanduser("~/.cache/ton-labels")
+    )
+
+
+def _run(cmd: list[str], cwd: Path | None = None) -> tuple[int, str]:
+    import subprocess
+    try:
+        r = subprocess.run(
+            cmd,
+            cwd=str(cwd) if cwd else None,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        return r.returncode, (r.stdout or "") + (r.stderr or "")
+    except FileNotFoundError:
+        return 127, "command not found: " + cmd[0]
+    except subprocess.TimeoutExpired:
+        return 124, "timeout"
+
+
+def _labels_repo_sync(refresh: bool = False) -> Path | None:
+    """Ensure ~/.cache/ton-labels is a fresh-ish shallow clone. Returns repo dir
+    or None if git isn't available / network failed.
+
+    Refresh policy: clone if missing; `git pull` if `--refresh` OR older than
+    TON_LABELS_REFRESH_DAYS OR HEAD mismatch.
+    """
+    cache = _labels_cache_path()
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    git_dir = cache / ".git"
+
+    if not git_dir.is_dir():
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        # Remove any stale non-git dir at path
+        if cache.exists():
+            import shutil
+            shutil.rmtree(cache, ignore_errors=True)
+        code, out = _run(
+            ["git", "clone", "--depth", "1", TON_LABELS_REPO_URL, str(cache)]
+        )
+        if code != 0:
+            sys.stderr.write(f"ton: ton-labels clone failed: {out.strip()[:200]}\n")
+            return None
+        return cache
+
+    # Already cloned. Maybe refresh.
+    stale = False
+    try:
+        age = time.time() - git_dir.stat().st_mtime
+        if age > TON_LABELS_REFRESH_DAYS * 86400:
+            stale = True
+    except OSError:
+        pass
+    if refresh or stale:
+        _run(["git", "fetch", "--depth", "1", "origin"], cwd=cache)
+        _run(["git", "reset", "--hard", "origin/HEAD"], cwd=cache)
+        # Touch .git so we don't retry every invocation
+        try:
+            os.utime(git_dir, None)
+        except OSError:
+            pass
+    return cache
+
+
+def _labels_index_build(repo: Path) -> dict[str, dict]:
+    """Walk assets/**/*.json, merge addresses[] into one flat dict keyed by
+    uppercase raw address. Value: {label, category, organization, source_file}.
+    """
+    assets = repo / "assets"
+    index: dict[str, dict] = {}
+    if not assets.is_dir():
+        return index
+    for jf in assets.rglob("*.json"):
+        try:
+            data = json.loads(jf.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        meta = data.get("metadata") or {}
+        label = meta.get("label") or meta.get("name") or meta.get("organization") or jf.stem
+        category = meta.get("category") or jf.parent.name
+        organization = meta.get("organization") or meta.get("label") or jf.stem
+        rel = str(jf.relative_to(repo))
+        for rec in data.get("addresses") or []:
+            addr = (rec.get("address") or "").strip()
+            if not addr:
+                continue
+            try:
+                key = Address(addr).to_str(False).upper()
+            except Exception:
+                # Skip malformed addresses silently
+                continue
+            # First write wins — assets/ is already deduplicated upstream
+            index.setdefault(
+                key,
+                {
+                    "label": label,
+                    "category": category,
+                    "organization": organization,
+                    "source_file": rel,
+                },
+            )
+    return index
+
+
+def _labels_index_load(refresh: bool = False) -> dict[str, dict]:
+    """Load the flat label index from cache. Rebuilds if missing or if repo HEAD
+    changed since last build."""
+    repo = _labels_repo_sync(refresh=refresh)
+    if repo is None:
+        return {}
+    idx_file = repo / "_index.json"
+    head_file = repo / ".git" / "HEAD"
+    # Determine current HEAD hash
+    code, head_hash = _run(["git", "rev-parse", "HEAD"], cwd=repo)
+    head_hash = head_hash.strip() if code == 0 else ""
+
+    if idx_file.is_file() and not refresh:
+        try:
+            blob = json.loads(idx_file.read_text(encoding="utf-8"))
+            if blob.get("head") == head_hash and blob.get("index"):
+                return blob["index"]
+        except (OSError, json.JSONDecodeError):
+            pass
+    # (Re)build
+    index = _labels_index_build(repo)
+    try:
+        idx_file.write_text(
+            json.dumps({"head": head_hash, "index": index}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except OSError:
+        pass
+    return index
+
+
+def _ton_labels_lookup(raw_lower: str, refresh: bool = False) -> dict | None:
+    """Look up a raw address (case-insensitive) in the ton-labels cache."""
+    try:
+        key = Address(raw_lower).to_str(False).upper()
+    except Exception:
+        return None
+    idx = _labels_index_load(refresh=refresh)
+    hit = idx.get(key)
+    if not hit:
+        return None
+    return {
+        "label": hit.get("label") or hit.get("organization") or "-",
+        "category": hit.get("category") or "-",
+        "source": f"ton-labels:{hit.get('source_file', '-')}",
+    }
+
+
+def cmd_label(args: argparse.Namespace) -> None:
+    a = normalize_address(args.address)
+    raw_l = a.to_str(False)
+    raw_u = raw_upper(a)
+    found: dict | None = None
+
+    # 1. TONAPI /accounts/{addr}.name
+    try:
+        acc = tonapi_get(f"/v2/accounts/{raw_u}")
+        if acc.get("name"):
+            found = {
+                "label": acc["name"],
+                "category": ",".join(acc.get("interfaces") or []) or "account",
+                "source": "tonapi:name",
+            }
+    except SystemExit:
+        pass
+
+    # 2. DNS backresolve
+    if not found:
+        try:
+            d = tonapi_get(f"/v2/accounts/{raw_u}/dns/backresolve")
+            domains = d.get("domains") or []
+            if domains:
+                # Each domain is usually a dict {name, ...} or string — handle both
+                first = domains[0]
+                dname = first if isinstance(first, str) else (
+                    first.get("name") or first.get("domain") or str(first)
+                )
+                found = {
+                    "label": dname,
+                    "category": "dns",
+                    "source": "tonapi:dns/backresolve",
+                }
+        except SystemExit:
+            pass
+
+    # 3. ton-studio/ton-labels index (cached at ~/.cache/ton-labels)
+    if not found:
+        hit = _ton_labels_lookup(raw_l, refresh=getattr(args, "refresh", False))
+        if hit:
+            found = hit
+
+    # 4. profile lookup fallback
+    if not found and os.environ.get("TON_PROFILER_API_TOKEN"):
+        try:
+            prof = profiler_req("GET", f"/api/v1/address/{raw_u}")
+            if prof:
+                tags = prof.get("tags") or []
+                cname = prof.get("cluster_name")
+                if cname or tags:
+                    found = {
+                        "label": cname or (tags[0].get("tag") if tags else "-"),
+                        "category": "cluster",
+                        "source": "profile",
+                    }
+        except SystemExit:
+            pass
+
+    if args.json:
+        print_json({"address": raw_u, **(found or {"label": None})})
+        return
+    if not found:
+        print(f"{uq(a)}\t-\t-\tnone")
+        sys.exit(3)
+    print(
+        "\t".join(
+            [
+                uq(a),
+                found.get("label") or "-",
+                found.get("category") or "-",
+                found.get("source") or "-",
+            ]
+        )
+    )
+
+
+# ---------- chain ----------
+
+
+def _first_inbound_sender(raw_addr: str) -> str | None:
+    """Return the counterparty raw address from the earliest inbound msg we can
+    retrieve. TONAPI doesn't expose a dedicated 'first_tx_sender' field, so we
+    paginate transactions descending and keep the oldest inbound sender seen.
+    Cheap in practice: a wallet's first-ever tx is the deploy/init, reachable
+    by walking the tail."""
+    # Walk descending, keep track of the last inbound source encountered.
+    # With limit=100 and before_lt, we stop once page is empty.
+    last_in: str | None = None
+    cursor: int | None = None
+    pages = 0
+    while pages < 10:  # hard cap ~1000 tx
+        params = {"limit": 100}
+        if cursor:
+            params["before_lt"] = cursor
+        data = tonapi_get(
+            f"/v2/blockchain/accounts/{raw_addr}/transactions", params=params
+        )
+        txs = data.get("transactions") or []
+        if not txs:
+            break
+        for tx in txs:
+            im = tx.get("in_msg") or {}
+            src = (im.get("source") or {}).get("address")
+            if src:
+                last_in = src  # keep overwriting; loop goes oldest-last
+        cursor = txs[-1].get("lt")
+        if not cursor:
+            break
+        pages += 1
+        time.sleep(0.2)
+    return last_in
+
+
+def cmd_chain(args: argparse.Namespace) -> None:
+    a = normalize_address(args.address)
+    current = raw_upper(a)
+    rows = []
+    for hop in range(args.depth + 1):
+        label_info: dict | None = None
+        # Try label lookup (cheap path only: TONAPI name + ton-labels repo)
+        try:
+            acc = tonapi_get(f"/v2/accounts/{current}")
+            if acc.get("name"):
+                label_info = {
+                    "label": acc["name"],
+                    "source": "tonapi:name",
+                }
+        except SystemExit:
+            pass
+        if not label_info:
+            hit = _ton_labels_lookup(current.lower())
+            if hit:
+                label_info = {"label": hit["label"], "source": hit["source"]}
+        rows.append(
+            {
+                "hop": hop,
+                "address_raw": current,
+                "address_uq": uq(Address(current)),
+                "label": (label_info or {}).get("label"),
+                "label_source": (label_info or {}).get("source"),
+            }
+        )
+        if label_info:
+            break  # hit a labeled address — stop
+        if hop == args.depth:
+            break
+        # walk one step up
+        sender = _first_inbound_sender(current)
+        if not sender:
+            break
+        current = sender.upper()
+
+    if args.json:
+        print_json(rows)
+        return
+    print("# hop\taddress_uq\tlabel\tsource")
+    for r in rows:
+        print(
+            "\t".join(
+                [
+                    str(r["hop"]),
+                    r["address_uq"],
+                    r["label"] or "-",
+                    r["label_source"] or "-",
+                ]
+            )
+        )
+
+
+# ---------- jetton ----------
+
+
+def cmd_jetton(args: argparse.Namespace) -> None:
+    a = normalize_address(args.address)
+    data = tonapi_get(f"/v2/accounts/{raw_upper(a)}/jettons")
+    if args.json:
+        print_json(data)
+        return
+    balances = data.get("balances") or []
+    if not balances:
+        print("# no jetton balances")
+        return
+    print("# symbol\tname\tbalance\tjetton_master_uq")
+    for b in balances[: args.limit]:
+        j = b.get("jetton") or {}
+        decs = j.get("decimals") or 9
+        try:
+            bal = int(b.get("balance") or 0) / (10**decs)
+        except (TypeError, ValueError):
+            bal = 0.0
+        master = j.get("address") or "-"
+        try:
+            m_uq = uq(Address(master)) if master != "-" else "-"
+        except Exception:
+            m_uq = master
+        print(
+            "\t".join(
+                [
+                    j.get("symbol") or "-",
+                    (j.get("name") or "-").replace("\t", " "),
+                    f"{bal:.4f}",
+                    m_uq,
+                ]
+            )
+        )
+
+
+# ---------- argparse ----------
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="ton",
+        description=(
+            "TON CLI: TONAPI account/tx/dns + labels + enrichment. "
+            "Terse output by default; pass --json for raw."
+        ),
+    )
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    a = sub.add_parser("addr", help="normalize / convert an address")
+    a.add_argument("address")
+    a.add_argument("--json", action="store_true")
+    a.set_defaults(func=cmd_addr)
+
+    a = sub.add_parser("acc", help="account summary (balance, interface, name)")
+    a.add_argument("address")
+    a.add_argument("--json", action="store_true")
+    a.set_defaults(func=cmd_acc)
+
+    a = sub.add_parser("tx", help="transaction list with filters")
+    a.add_argument("address")
+    a.add_argument("--out", action="store_true", help="only outgoing messages")
+    a.add_argument(
+        "--in",
+        dest="inflow",
+        action="store_true",
+        help="only incoming messages",
+    )
+    a.add_argument(
+        "--min-value",
+        type=float,
+        default=0.0,
+        help="min TON value (default: 0)",
+    )
+    a.add_argument(
+        "--limit", type=int, default=20, help="max rows to print (default: 20)"
+    )
+    a.add_argument("--since", help="YYYY-MM-DD UTC lower bound")
+    a.add_argument("--dest", help="filter outgoing to this destination")
+    a.add_argument("--json", action="store_true")
+    a.set_defaults(func=cmd_tx)
+
+    a = sub.add_parser("dns", help="resolve .ton domain or reverse-resolve address")
+    a.add_argument("target", help="domain (foo.ton) or address")
+    a.add_argument("--json", action="store_true")
+    a.set_defaults(func=cmd_dns)
+
+    a = sub.add_parser("profile", help="address profile lookup (cluster + tags)")
+    a.add_argument("address")
+    a.add_argument(
+        "--related-only",
+        action="store_true",
+        help="print only related addresses (one per line)",
+    )
+    a.add_argument("--limit", type=int, default=20)
+    a.add_argument("--json", action="store_true")
+    a.set_defaults(func=cmd_profile)
+
+    a = sub.add_parser("label", help="quick label lookup (fastest path wins)")
+    a.add_argument("address")
+    a.add_argument("--json", action="store_true")
+    a.add_argument(
+        "--refresh",
+        action="store_true",
+        help="force `git pull` on the ton-labels cache before lookup",
+    )
+    a.set_defaults(func=cmd_label)
+
+    a = sub.add_parser("chain", help="walk the funding chain until a labeled address")
+    a.add_argument("address")
+    a.add_argument(
+        "--depth", type=int, default=5, help="max hops (default: 5)"
+    )
+    a.add_argument("--json", action="store_true")
+    a.set_defaults(func=cmd_chain)
+
+    a = sub.add_parser("jetton", help="jetton balances for an address")
+    a.add_argument("address")
+    a.add_argument("--limit", type=int, default=20)
+    a.add_argument("--json", action="store_true")
+    a.set_defaults(func=cmd_jetton)
+
+    return p
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        args.func(args)
+    except KeyboardInterrupt:
+        sys.exit(130)
+    except BrokenPipeError:
+        sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
