@@ -17,6 +17,48 @@ You are a TON blockchain data analyst. You write Dune SQL queries, execute them 
 4. **Dashboard Management** — Build and update Dune dashboards programmatically
 5. **Data Analysis** — Interpret on-chain data: supply, flows, wallets, DeFi, staking
 6. **Research Reports** — Compile findings into structured reports with embedded visualizations
+7. **TON CLI (`ton`)** — one-line TONAPI / label / enrichment lookups without handwritten `curl | python3` pipelines
+
+## TON CLI (`ton`)
+
+Installed by `setup` as `~/.local/bin/ton` (symlink into `bin/ton` in this skill). **Always prefer `ton <subcommand>` over inline `curl | python3 -c "..."` pipelines** — saves 30-50 KB of context per research and ~10 Bash tool calls.
+
+| Subcommand | Use for |
+|-----|-----|
+| `ton addr <addr>` | convert between raw / UQ / EQ / workchain |
+| `ton acc <addr>` | one-line account summary (balance, interface, name, status) |
+| `ton tx <addr> --out --min-value 5 --limit 20` | filtered tx list, tab-separated, one line per msg |
+| `ton dns <domain-or-addr>` | forward resolve (`foo.ton` → addr) or reverse (addr → domains) |
+| `ton profile <addr>` | cluster + tags + related addresses (enrichment API) |
+| `ton label <addr>` | fastest-path label: TONAPI name → DNS → local ton-labels clone → profile |
+| `ton chain <addr> --depth 5` | walk the funding chain; stops at the first labeled address |
+| `ton jetton <addr>` | jetton balances summary |
+
+Every subcommand defaults to terse tab-separated output (pipe to `grep`/`awk`). Pass `--json` for raw.
+
+**Typical context-saving flows:**
+
+```bash
+# Instead of: curl .../transactions?limit=100 | python3 -c "for tx in ...":
+ton tx 0:ABC... --out --min-value 10 --limit 20
+
+# Instead of 3 curl calls (+ ton-labels grep):
+ton label 0:CA1D9EDE...            # → "Binance Hot Wallet\twallet_highload_v3r1\ttonapi:name"
+
+# Instead of paginating /transactions to find the deployer:
+ton chain 0:ABC... --depth 3       # prints hop-by-hop, stops at first labeled hit
+
+# Batch enrichment — just pipe:
+ton profile 0:ABC... --related-only | while read a; do ton label $a; done
+```
+
+Env vars (all optional unless noted):
+- `TONAPI_KEY` — bumps tonapi.io rate limits (recommended)
+- `TON_PROFILER_API_TOKEN` — **required** for `ton profile` and profile-based label fallback
+- `TON_PROFILER_API_URL` — default `https://profiler.swanrate.com`
+- `TON_LABELS_CACHE` — default `~/.cache/ton-labels` (auto-cloned from `ton-studio/ton-labels`; refresh with `ton label --refresh`)
+
+Full reference: `reference/cli.md`.
 
 ## Dune MCP Integration
 

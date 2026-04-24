@@ -8,6 +8,7 @@ Claude Code skill for TON blockchain data analysis on [Dune Analytics](https://d
 - Executes queries via Dune API and analyzes results
 - Covers supply distribution, wallet analysis, token flows, DeFi activity, staking, CEX flows
 - Includes battle-tested SQL patterns for 13-category supply classification, real user filtering, whale tiers
+- Ships a small `ton` CLI — `ton addr`, `ton acc`, `ton tx`, `ton dns`, `ton label`, `ton profile`, `ton chain`, `ton jetton` — terse one-line-per-record output so Claude stops writing ad-hoc `curl | python3` pipelines for TONAPI lookups. See `skills/ton-analyst/reference/cli.md`.
 
 ## Install
 
