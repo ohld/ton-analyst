@@ -7,20 +7,23 @@ enrichment API into terse one-line-per-record output. Designed to replace the
 
 ## Install
 
-The skill's `setup` script creates `~/.local/bin/ton -> skills/ton-analyst/bin/ton`.
-
-Manual:
-
 ```bash
-chmod +x skills/ton-analyst/bin/ton
-ln -sf "$PWD/skills/ton-analyst/bin/ton" ~/.local/bin/ton
+git clone https://github.com/ohld/ton-analyst.git
+cd ton-analyst
+./setup
+# re-run after a pull to pick up new deps
+
+./setup --uninstall   # removes ~/.local/bin/ton and the skill symlink
 ```
 
-Dependencies (already installed in a typical environment):
+The single `./setup` script:
 
-- Python 3.9+ (stdlib only beyond these two)
-- `requests`
-- `pytoniq_core` (address format conversion)
+1. Creates a Python venv at `skills/ton-analyst/.venv`
+2. `pip install -r skills/ton-analyst/requirements.txt`
+3. Symlinks `skills/ton-analyst` into `~/.claude/skills/ton-analyst`
+4. Writes a small bash wrapper at `~/.local/bin/ton` that invokes the venv's python
+
+Python 3.10+ required. Dependencies pinned in `skills/ton-analyst/requirements.txt`: `requests`, `pytoniq-core`. No other package manager or lockfile. Make sure `~/.local/bin` is on your `PATH` (setup warns if it isn't).
 
 ## Environment
 
