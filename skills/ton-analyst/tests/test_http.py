@@ -202,6 +202,72 @@ def test_cmd_tx_tsv_default(capsys):
     assert "next page" in captured.err
 
 
+# ---------- cmd_tx address-format parity (raw upper / lower / UQ / EQ) ----------
+
+# Valid UQ/EQ forms for RAW (verified via pytoniq_core).
+_UQ = "UQDKHZ7e70CzqdvZCC83Z4WVR8POC_ZB0J1Y4zo88G-zCSRH"
+_EQ = "EQDKHZ7e70CzqdvZCC83Z4WVR8POC_ZB0J1Y4zo88G-zCXmC"
+
+
+def _capture_path_and_respond(doc, sink):
+    def handler(req):
+        sink.append(req.url.path)
+        if req.url.params.get("before_lt"):
+            return httpx.Response(200, json={"transactions": []})
+        return httpx.Response(200, json=doc)
+    return handler
+
+
+def _run_cmd_tx_with_addr(addr, capsys):
+    paths = []
+    handler = _capture_path_and_respond(_tx_doc(), paths)
+
+    class NS:
+        pass
+    ns = NS()
+    ns.addr = addr
+    ns.in_ = False
+    ns.out = False
+    ns.min_value = 0
+    ns.since = None
+    ns.before = None
+    ns.dest = None
+    ns.limit = 5
+    ns.before_lt = None
+    ns.json = False
+
+    async def go():
+        async with _mock_client(handler) as c:
+            await ton.cmd_tx(c, ns)
+
+    asyncio.run(go())
+    rows = [r for r in capsys.readouterr().out.strip().splitlines() if r]
+    return paths, rows
+
+
+_EXPECTED_PATH = f"/v2/blockchain/accounts/{RAW}/transactions"
+
+
+def test_cmd_tx_accepts_lowercase_raw(capsys):
+    paths, rows = _run_cmd_tx_with_addr(RAW.lower(), capsys)
+    assert rows, "expected at least one row emitted"
+    # Every request must target the normalized UPPERCASE-raw path exactly.
+    assert paths[0] == _EXPECTED_PATH, paths
+    assert all(p == _EXPECTED_PATH for p in paths), paths
+
+
+def test_cmd_tx_accepts_uq_address(capsys):
+    paths, rows = _run_cmd_tx_with_addr(_UQ, capsys)
+    assert rows, "expected at least one row emitted"
+    assert paths[0] == _EXPECTED_PATH, paths
+
+
+def test_cmd_tx_accepts_eq_address(capsys):
+    paths, rows = _run_cmd_tx_with_addr(_EQ, capsys)
+    assert rows, "expected at least one row emitted"
+    assert paths[0] == _EXPECTED_PATH, paths
+
+
 def test_cmd_tx_out_only_min_value(capsys):
     handler = _paginating_handler(_tx_doc())
 
