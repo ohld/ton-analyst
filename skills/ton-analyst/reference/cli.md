@@ -18,7 +18,7 @@ Python 3.10+ required.
 |---|---|---|---|
 | `TONAPI_API_KEY` | no | — | Bearer token for higher TONAPI rate limits. `TONAPI_KEY` also accepted. |
 | `TONAPI_BASE` | no | `https://tonapi.io` | Override API base URL. |
-| `TON_LABELS_CACHE` | no | `~/.cache/ton-labels` | Where the `ton-labels` repo is shallow-cloned for label lookups. Auto-populated on first `ton acc` call; refreshed after 7 days. |
+| `TON_LABELS_CACHE` | no | `~/.cache/ton-labels` | Where the built `ton-labels` CSV is cached (`assets.csv` + `assets.csv.etag` + `_index.json`). Fetched from the `ton-studio/ton-labels` `build` branch on first `ton acc` call; revalidated after 24h via ETag conditional GET. |
 
 ## `ton acc <addr>`
 
