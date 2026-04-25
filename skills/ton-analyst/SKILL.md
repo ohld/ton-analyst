@@ -17,6 +17,28 @@ You are a TON blockchain data analyst. You write Dune SQL queries, execute them 
 4. **Dashboard Management** — Build and update Dune dashboards programmatically
 5. **Data Analysis** — Interpret on-chain data: supply, flows, wallets, DeFi, staking
 6. **Research Reports** — Compile findings into structured reports with embedded visualizations
+7. **`ton` CLI** — lightweight TONAPI wrapper for context-efficient address + tx lookups (see below)
+
+## `ton` CLI — prefer over inline `curl | python3` pipelines
+
+Installed by `./skills/ton-analyst/setup` (puts a wrapper at `~/.local/bin/ton`; needs Python 3.10+). Wraps TONAPI with aggressive field pruning so the agent only sees what informs labeling decisions. Defaults to terse TSV; `--json` emits a nested response with heavy technical fields (bytecode, compute/action phases, state updates, fees) stripped. Full reference: `reference/cli.md`.
+
+Two subcommands in the MVP:
+
+```
+ton acc <addr>                    one-line: address, label, status, balance_ton, flags, top_jettons
+ton tx  <addr> [flags]            tx history (TSV): ts, lt, direction, counterparty, value_ton, comment
+```
+
+`ton tx` flags: `--in`, `--out`, `--min-value TON`, `--since YYYY-MM-DD`, `--before YYYY-MM-DD`, `--dest ADDR`, `--limit N`, `--before-lt CURSOR`, `--json`. Pagination cursor is printed to stderr as `# next page: --before-lt <lt>`.
+
+**When to use it:** any address question — "what has this wallet done?", "is this labeled?", "what large outflows went where?". `ton acc` resolves labels via the `ton-labels` repo cache + TONAPI `account.name`; no separate label command needed.
+
+**Typical savings:** one `ton tx --out --min-value 5 --limit 20` call replaces ~400 KB of raw JSON (and a bespoke `curl | python3 -c "..."` parser) with ~2 KB of tab-separated rows — ~200× reduction in context bytes.
+
+Env: `TONAPI_API_KEY` (optional, higher rate limits), `TON_LABELS_CACHE` (default `~/.cache/ton-labels`, auto-cloned from `github.com/ton-studio/ton-labels` on first label lookup).
+
+Planned subcommands (not yet shipped): see `bin/TODO.md`.
 
 ## Dune MCP Integration
 

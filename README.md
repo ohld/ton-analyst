@@ -32,12 +32,37 @@ After installing, ask Claude Code:
 
 The skill provides table schemas, reusable CTEs, and SQL conventions so Claude can generate correct queries on the first try.
 
+## `ton` CLI — context-efficient TONAPI wrapper
+
+Ships alongside the skill. Replaces the common `curl https://tonapi.io/... | python3 -c "..."` pattern with a single command that outputs terse TSV and aggressively prunes heavy technical fields (bytecode, phases, state updates, fees). Typical `ton tx` call returns ~80× less data than the raw TONAPI response.
+
+```
+ton acc <addr>                    address, label, status, balance_ton, flags, top_jettons
+ton tx  <addr> [--out/--in/--min-value/--since/--before/--dest/--limit/--before-lt/--json]
+```
+
+Install (one command, creates a venv and drops a wrapper at `~/.local/bin/ton`):
+
+```
+./skills/ton-analyst/setup
+```
+
+Python 3.10+, deps = `httpx` + `pytoniq-core`. Optional env: `TONAPI_API_KEY` (higher rate limits), `TON_LABELS_CACHE` (default `~/.cache/ton-labels`). Full reference: [`skills/ton-analyst/reference/cli.md`](skills/ton-analyst/reference/cli.md). Future subcommand ideas: [`skills/ton-analyst/bin/TODO.md`](skills/ton-analyst/bin/TODO.md).
+
 ## What's inside
 
 ```
 skills/ton-analyst/
-├── SKILL.md                    # Entry point — capabilities, key tables, links
+├── SKILL.md                    # Entry point — capabilities, CLI, key tables
+├── bin/
+│   ├── ton                     # the CLI
+│   └── TODO.md                 # deferred subcommand ideas
+├── setup                       # venv + wrapper installer
+├── requirements.txt            # httpx, pytoniq-core (runtime)
+├── requirements-dev.txt        # + pytest, pytest-asyncio
+├── tests/                      # pytest suite (35 tests, httpx.MockTransport — no network)
 └── reference/
+    ├── cli.md                  # `ton` CLI reference
     ├── tables.md               # Table schemas (12 tables)
     ├── labels.md               # Labels, key addresses, CEX, sybil
     ├── patterns.md             # Gotchas, reusable CTEs, classification logic

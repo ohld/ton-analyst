@@ -1,0 +1,492 @@
+#!/usr/bin/env python3
+"""
+ton — a minimal, context-efficient CLI wrapping the TONAPI REST API.
+
+Two subcommands (MVP):
+  ton acc <addr>   one-line summary: address, label, status, TON balance, flags, top jettons
+  ton tx  <addr>   tab-separated tx list: ts, lt, direction, counterparty, value_ton, comment
+
+Design: default output is terse TSV (grep/awk-friendly). `--json` dumps pruned
+nested TONAPI objects — only heavy technical fields are stripped, shape is preserved.
+
+Env:
+  TONAPI_API_KEY    optional; higher rate limits (TONAPI_KEY also accepted)
+  TONAPI_BASE       default https://tonapi.io
+  TON_LABELS_CACHE  default ~/.cache/ton-labels
+
+Exit codes: 0 ok, 2 usage, 3 not found / empty, 4 network/HTTP error.
+"""
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+import os
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, AsyncIterator, Iterable
+
+import httpx
+
+try:
+    from pytoniq_core import Address
+except ImportError:
+    print("error: pytoniq_core not installed (run ./setup)", file=sys.stderr)
+    sys.exit(4)
+
+
+TONAPI_BASE = os.environ.get("TONAPI_BASE", "https://tonapi.io")
+TONAPI_KEY = os.environ.get("TONAPI_API_KEY") or os.environ.get("TONAPI_KEY")
+LABELS_CACHE = Path(os.environ.get("TON_LABELS_CACHE", Path.home() / ".cache" / "ton-labels"))
+LABELS_REPO = "https://github.com/ton-studio/ton-labels.git"
+LABELS_TTL_DAYS = 7
+
+
+# ---------- address ----------
+
+def norm_raw(addr: str) -> str:
+    """Return raw `workchain:hex` UPPERCASE form, or raise ValueError."""
+    a = Address(addr)
+    return f"{a.wc}:{a.hash_part.hex().upper()}"
+
+
+# ---------- HTTP ----------
+
+def _headers() -> dict[str, str]:
+    h = {"Accept": "application/json"}
+    if TONAPI_KEY:
+        h["Authorization"] = f"Bearer {TONAPI_KEY}"
+    return h
+
+
+async def tonapi(client: httpx.AsyncClient, path: str, params: dict | None = None) -> dict:
+    try:
+        r = await client.get(path, params=params, headers=_headers())
+    except httpx.HTTPError as e:
+        die(f"network error: {e}", 4)
+    if r.status_code == 404:
+        die("not found", 3)
+    if r.status_code == 429:
+        die("rate limited by TONAPI — set TONAPI_API_KEY for higher limits (https://tonconsole.com/)", 4)
+    if not r.is_success:
+        die(f"HTTP {r.status_code}: {r.text[:200]}", 4)
+    return r.json()
+
+
+def die(msg: str, code: int = 2) -> None:
+    print(f"error: {msg}", file=sys.stderr)
+    sys.exit(code)
+
+
+# ---------- ton-labels cache ----------
+
+def _clone_or_pull_labels() -> None:
+    LABELS_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    if (LABELS_CACHE / ".git").exists():
+        subprocess.run(
+            ["git", "-C", str(LABELS_CACHE), "pull", "--quiet", "--ff-only"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    else:
+        subprocess.run(
+            ["git", "clone", "--depth", "1", "--quiet", LABELS_REPO, str(LABELS_CACHE)],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+
+def _labels_index(refresh: bool = False) -> dict[str, dict]:
+    """Return dict keyed by raw UPPERCASE address → {label, category, organization}.
+
+    Silent no-op (returns {}) if git/network unavailable and no cache present.
+    """
+    idx_path = LABELS_CACHE / "_index.json"
+    assets = LABELS_CACHE / "assets"
+
+    stale = refresh or not idx_path.exists()
+    if not stale and idx_path.exists():
+        age = time.time() - idx_path.stat().st_mtime
+        if age > LABELS_TTL_DAYS * 86400:
+            stale = True
+
+    if stale:
+        try:
+            _clone_or_pull_labels()
+        except Exception:
+            pass
+
+    if not assets.exists():
+        return {}
+
+    if idx_path.exists() and not refresh:
+        try:
+            return json.loads(idx_path.read_text())
+        except Exception:
+            pass
+
+    out: dict[str, dict] = {}
+    for jf in assets.rglob("*.json"):
+        try:
+            doc = json.loads(jf.read_text())
+        except Exception:
+            continue
+        meta = doc.get("metadata") or {}
+        for a in doc.get("addresses") or []:
+            addr = a.get("address")
+            if not addr:
+                continue
+            try:
+                raw = norm_raw(addr)
+            except Exception:
+                continue
+            out[raw] = {
+                "label": meta.get("label") or meta.get("name") or "",
+                "category": meta.get("category") or "",
+                "organization": meta.get("organization") or "",
+            }
+    try:
+        idx_path.write_text(json.dumps(out))
+    except Exception:
+        pass
+    return out
+
+
+def lookup_label(raw: str, tonapi_name: str | None) -> str:
+    """Compact label. Precedence: ton-labels > TONAPI name > ''."""
+    idx = _labels_index()
+    hit = idx.get(raw)
+    if hit:
+        label = hit["label"]
+        category = hit["category"]
+        if label and category:
+            return f"{label}/{category}"
+        return label or category or ""
+    return (tonapi_name or "").strip()
+
+
+# ---------- formatting ----------
+
+def fmt_ton(nanoton: int | str | None) -> str:
+    try:
+        n = int(nanoton or 0)
+    except (TypeError, ValueError):
+        return "0"
+    if n == 0:
+        return "0"
+    s = f"{n / 1e9:.3f}".rstrip("0").rstrip(".")
+    return s or "0"
+
+
+def fmt_ts(utime: int | None) -> str:
+    if not utime:
+        return "-"
+    return datetime.fromtimestamp(int(utime), tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def flags_of(acc: dict) -> str:
+    f = []
+    if acc.get("is_scam"):
+        f.append("scam")
+    if acc.get("memo_required"):
+        f.append("memo")
+    if not acc.get("is_wallet", True):
+        f.append("contract")
+    return ",".join(f) or "-"
+
+
+# ---------- pruning (for --json tx) ----------
+
+_TX_DROP = {
+    "compute_phase", "storage_phase", "credit_phase", "action_phase", "bounce_phase",
+    "aborted", "destroyed", "orig_status", "end_status", "total_fees",
+    "state_update", "block", "prev_trans_hash", "prev_trans_lt", "raw",
+}
+_MSG_DROP = {
+    "init", "raw_body", "message_content", "decoded_op_name", "import_fee", "ihr_fee",
+    "fwd_fee", "ihr_disabled", "bounce", "bounced", "created_lt", "created_at",
+    "hash", "ihr_pending", "fwd_pending",
+}
+
+
+def prune_msg(m: dict) -> dict:
+    if not isinstance(m, dict):
+        return m
+    out: dict[str, Any] = {}
+    for k, v in m.items():
+        if k in _MSG_DROP:
+            continue
+        if k in ("source", "destination") and isinstance(v, dict):
+            out[k] = {"address": v.get("address")}
+            continue
+        out[k] = v
+    mc = m.get("message_content") or {}
+    dec = (mc.get("decoded") or {}).get("comment")
+    if dec and "comment" not in out:
+        out["comment"] = dec[:200]
+    return out
+
+
+def prune_tx(tx: dict) -> dict:
+    out: dict[str, Any] = {}
+    for k, v in tx.items():
+        if k in _TX_DROP:
+            continue
+        if k == "in_msg" and v:
+            out["in_msg"] = prune_msg(v)
+        elif k == "out_msgs" and v:
+            out["out_msgs"] = [prune_msg(x) for x in v]
+        else:
+            out[k] = v
+    return out
+
+
+# ---------- subcommands ----------
+
+async def cmd_acc(client: httpx.AsyncClient, args: argparse.Namespace) -> None:
+    try:
+        raw = norm_raw(args.addr)
+    except Exception as e:
+        die(f"bad address: {e}")
+
+    acc = await tonapi(client, f"/v2/accounts/{raw}")
+
+    if args.json:
+        for k in ("interfaces", "get_methods", "icon"):
+            acc.pop(k, None)
+        print(json.dumps(acc, ensure_ascii=False))
+        return
+
+    name = acc.get("name")
+    label = lookup_label(raw, name)
+    status = acc.get("status") or "-"
+    balance = fmt_ton(acc.get("balance"))
+    flags = flags_of(acc)
+
+    top_j = "-"
+    if args.jettons > 0 and status == "active":
+        try:
+            jdoc = await tonapi(client, f"/v2/accounts/{raw}/jettons", params={"currencies": "ton"})
+        except SystemExit:
+            jdoc = {"balances": []}
+        rows = []
+        for jb in (jdoc.get("balances") or []):
+            bal = int(jb.get("balance") or 0)
+            if bal == 0:
+                continue
+            jm = jb.get("jetton") or {}
+            decs = int(jm.get("decimals") or 9)
+            sym = jm.get("symbol") or jm.get("name") or "?"
+            rows.append((bal / (10 ** decs), sym))
+        rows.sort(reverse=True)
+        top_j = ";".join(f"{sym}:{v:.3g}" for v, sym in rows[: args.jettons]) or "-"
+
+    print("\t".join([raw, label or "-", status, balance, flags, top_j]))
+
+
+def tx_rows(tx: dict, want_in: bool, want_out: bool) -> Iterable[tuple]:
+    utime = tx.get("utime")
+    lt = tx.get("lt")
+    ts = fmt_ts(utime)
+
+    in_msg = tx.get("in_msg") or {}
+    if want_in and in_msg:
+        src = (in_msg.get("source") or {}).get("address")
+        val = int(in_msg.get("value") or 0)
+        if src and val > 0:
+            comment = (((in_msg.get("decoded_body") or {}).get("text")) or "")
+            if not comment:
+                comment = ((in_msg.get("message_content") or {}).get("decoded") or {}).get("comment") or ""
+            comment = comment.replace("\t", " ").replace("\n", " ")[:120]
+            yield (ts, lt, "IN", src, fmt_ton(val), comment or "-")
+
+    if want_out:
+        for om in tx.get("out_msgs") or []:
+            dst = (om.get("destination") or {}).get("address")
+            val = int(om.get("value") or 0)
+            if not dst or val == 0:
+                continue
+            comment = (((om.get("decoded_body") or {}).get("text")) or "")
+            if not comment:
+                comment = ((om.get("message_content") or {}).get("decoded") or {}).get("comment") or ""
+            comment = comment.replace("\t", " ").replace("\n", " ")[:120]
+            yield (ts, lt, "OUT", dst, fmt_ton(val), comment or "-")
+
+
+def emit_footer(last_lt: int | None, printed: int) -> None:
+    if last_lt and printed:
+        print(f"# next page: --before-lt {last_lt}", file=sys.stderr)
+
+
+async def cmd_tx(client: httpx.AsyncClient, args: argparse.Namespace) -> None:
+    try:
+        raw = norm_raw(args.addr)
+    except Exception as e:
+        die(f"bad address: {e}")
+
+    want_in = args.in_ or not args.out
+    want_out = args.out or not args.in_
+    if args.in_ and args.out:
+        want_in = want_out = True
+
+    since_utime = _parse_date(args.since, "--since") if args.since else None
+    before_utime = _parse_date(args.before, "--before") if args.before else None
+
+    params: dict[str, Any] = {"limit": min(max(args.limit * 3, 50), 1000)}
+    if args.before_lt:
+        params["before_lt"] = args.before_lt
+
+    min_value_nano = int(float(args.min_value) * 1e9) if args.min_value else 0
+    filter_dest = None
+    if args.dest:
+        try:
+            filter_dest = norm_raw(args.dest)
+        except Exception:
+            die("bad --dest address")
+
+    printed = 0
+    last_tx_lt: int | None = None  # lt of the last *fully processed* tx — safe pagination cursor
+
+    while printed < args.limit:
+        doc = await tonapi(client, f"/v2/blockchain/accounts/{raw}/transactions", params=params)
+        txs = doc.get("transactions") or []
+        if not txs:
+            break
+
+        for tx in txs:
+            utime = tx.get("utime") or 0
+            if since_utime and utime < since_utime:
+                emit_footer(last_tx_lt, printed)
+                return
+            if before_utime and utime > before_utime:
+                continue
+
+            # Process the entire tx atomically — don't break mid-tx, so `before_lt=last_tx_lt`
+            # on the next page correctly excludes only fully-emitted txs.
+            if args.json:
+                if _emit_tx_json(tx, want_in, want_out, min_value_nano, filter_dest):
+                    printed += 1
+            else:
+                for ts, lt, direction, cp, val_str, comment in tx_rows(tx, want_in, want_out):
+                    val_nano = int(float(val_str) * 1e9) if val_str != "0" else 0
+                    if val_nano < min_value_nano:
+                        continue
+                    if filter_dest:
+                        try:
+                            if norm_raw(cp) != filter_dest:
+                                continue
+                        except Exception:
+                            continue
+                    print("\t".join([ts, str(lt), direction, cp, val_str, comment]))
+                    printed += 1
+
+            last_tx_lt = tx.get("lt")
+            if printed >= args.limit:
+                emit_footer(last_tx_lt, printed)
+                return
+
+        next_lt = txs[-1].get("lt")
+        if not next_lt or next_lt == params.get("before_lt"):
+            break
+        params["before_lt"] = next_lt
+
+    emit_footer(last_tx_lt, printed)
+
+
+def _parse_date(s: str, flag: str) -> int:
+    try:
+        return int(datetime.strptime(s, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
+    except ValueError:
+        die(f"{flag} must be YYYY-MM-DD")
+        return 0  # unreachable
+
+
+def _emit_tx_json(tx: dict, want_in: bool, want_out: bool, min_value_nano: int, filter_dest: str | None) -> bool:
+    """Emit a pruned nested tx object if it matches filters. Returns True if emitted."""
+    pruned = prune_tx(tx)
+    if not want_out:
+        pruned["out_msgs"] = []
+    if not want_in:
+        pruned.pop("in_msg", None)
+
+    if min_value_nano or filter_dest:
+        filtered_out = []
+        for om in pruned.get("out_msgs") or []:
+            val = int(om.get("value") or 0)
+            if val < min_value_nano:
+                continue
+            if filter_dest:
+                try:
+                    if norm_raw((om.get("destination") or {}).get("address") or "") != filter_dest:
+                        continue
+                except Exception:
+                    continue
+            filtered_out.append(om)
+        pruned["out_msgs"] = filtered_out
+
+        im = pruned.get("in_msg")
+        if im:
+            val = int(im.get("value") or 0)
+            drop = val < min_value_nano
+            if not drop and filter_dest:
+                src = (im.get("source") or {}).get("address") or ""
+                try:
+                    drop = norm_raw(src) != filter_dest
+                except Exception:
+                    drop = True
+            if drop:
+                pruned.pop("in_msg", None)
+
+    if not (pruned.get("in_msg") or pruned.get("out_msgs")):
+        return False
+    print(json.dumps(pruned, ensure_ascii=False))
+    return True
+
+
+# ---------- main ----------
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(prog="ton", description="Context-efficient TONAPI CLI (MVP: acc, tx).")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    pa = sub.add_parser("acc", help="one-line account summary")
+    pa.add_argument("addr")
+    pa.add_argument("--jettons", type=int, default=5, help="show top-N jettons (0 to disable)")
+    pa.add_argument("--json", action="store_true", help="emit raw pruned account JSON")
+    pa.set_defaults(func=cmd_acc)
+
+    pt = sub.add_parser("tx", help="transaction history (TSV or pruned nested JSON)")
+    pt.add_argument("addr")
+    pt.add_argument("--in", dest="in_", action="store_true", help="incoming only")
+    pt.add_argument("--out", action="store_true", help="outgoing only")
+    pt.add_argument("--min-value", type=float, default=0, help="min value in TON")
+    pt.add_argument("--since", help="YYYY-MM-DD (UTC) — earliest tx to include")
+    pt.add_argument("--before", help="YYYY-MM-DD (UTC) — latest tx to include")
+    pt.add_argument("--dest", help="filter by counterparty address")
+    pt.add_argument("--limit", type=int, default=20)
+    pt.add_argument("--before-lt", type=int, help="pagination cursor (see stderr footer of previous call)")
+    pt.add_argument("--json", action="store_true", help="emit pruned nested tx objects (one per line)")
+    pt.set_defaults(func=cmd_tx)
+    return p
+
+
+async def _run(args: argparse.Namespace) -> None:
+    async with httpx.AsyncClient(base_url=TONAPI_BASE, timeout=30.0) as client:
+        await args.func(client, args)
+
+
+def main() -> None:
+    args = build_parser().parse_args()
+    try:
+        asyncio.run(_run(args))
+    except KeyboardInterrupt:
+        sys.exit(130)
+
+
+if __name__ == "__main__":
+    main()
