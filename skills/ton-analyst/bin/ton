@@ -22,7 +22,6 @@ import argparse
 import asyncio
 import json
 import os
-import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -41,8 +40,8 @@ except ImportError:
 TONAPI_BASE = os.environ.get("TONAPI_BASE", "https://tonapi.io")
 TONAPI_KEY = os.environ.get("TONAPI_API_KEY") or os.environ.get("TONAPI_KEY")
 LABELS_CACHE = Path(os.environ.get("TON_LABELS_CACHE", Path.home() / ".cache" / "ton-labels"))
-LABELS_REPO = "https://github.com/ton-studio/ton-labels.git"
-LABELS_TTL_DAYS = 7
+LABELS_CSV_URL = "https://raw.githubusercontent.com/ton-studio/ton-labels/refs/heads/build/assets.csv"
+LABELS_TTL_HOURS = 24
 
 
 # ---------- address ----------
@@ -81,80 +80,91 @@ def die(msg: str, code: int = 2) -> None:
     sys.exit(code)
 
 
-# ---------- ton-labels cache ----------
+# ---------- ton-labels cache (built CSV from ton-studio/ton-labels @ build) ----------
 
-def _clone_or_pull_labels() -> None:
-    LABELS_CACHE.parent.mkdir(parents=True, exist_ok=True)
-    if (LABELS_CACHE / ".git").exists():
-        subprocess.run(
-            ["git", "-C", str(LABELS_CACHE), "pull", "--quiet", "--ff-only"],
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    else:
-        subprocess.run(
-            ["git", "clone", "--depth", "1", "--quiet", LABELS_REPO, str(LABELS_CACHE)],
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+CSV_PATH = LABELS_CACHE / "assets.csv"
+ETAG_PATH = LABELS_CACHE / "assets.csv.etag"
+INDEX_PATH = LABELS_CACHE / "_index.json"
 
 
-def _labels_index(refresh: bool = False) -> dict[str, dict]:
-    """Return dict keyed by raw UPPERCASE address → {label, category, organization}.
+def _fetch_labels_csv() -> None:
+    """Conditional GET of the built CSV. Silent no-op on network failure."""
+    import urllib.error, urllib.request
 
-    Silent no-op (returns {}) if git/network unavailable and no cache present.
-    """
-    idx_path = LABELS_CACHE / "_index.json"
-    assets = LABELS_CACHE / "assets"
+    LABELS_CACHE.mkdir(parents=True, exist_ok=True)
+    req = urllib.request.Request(LABELS_CSV_URL)
+    try:
+        etag = ETAG_PATH.read_text().strip()
+    except Exception:
+        etag = ""
+    if etag:
+        req.add_header("If-None-Match", etag)
 
-    stale = refresh or not idx_path.exists()
-    if not stale and idx_path.exists():
-        age = time.time() - idx_path.stat().st_mtime
-        if age > LABELS_TTL_DAYS * 86400:
-            stale = True
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            tmp = CSV_PATH.with_suffix(".csv.tmp")
+            tmp.write_bytes(resp.read())
+            tmp.replace(CSV_PATH)  # atomic: no partial-write window
+            new_etag = resp.headers.get("ETag")
+            if new_etag:
+                ETAG_PATH.write_text(new_etag)
+    except urllib.error.HTTPError as e:
+        if e.code == 304 and CSV_PATH.exists():
+            # 304: content unchanged — touch both so the freshness check skips a reparse.
+            now = None
+            os.utime(CSV_PATH, now)
+            if INDEX_PATH.exists():
+                os.utime(INDEX_PATH, now)
+    except Exception:
+        pass  # keep prior cache (or none) silently
 
-    if stale:
-        try:
-            _clone_or_pull_labels()
-        except Exception:
-            pass
 
-    if not assets.exists():
-        return {}
-
-    if idx_path.exists() and not refresh:
-        try:
-            return json.loads(idx_path.read_text())
-        except Exception:
-            pass
+def _build_index() -> dict[str, dict]:
+    """Parse CSV → {raw_addr: {label, category}}. Silent on error."""
+    import csv as _csv
 
     out: dict[str, dict] = {}
-    for jf in assets.rglob("*.json"):
-        try:
-            doc = json.loads(jf.read_text())
-        except Exception:
-            continue
-        meta = doc.get("metadata") or {}
-        for a in doc.get("addresses") or []:
-            addr = a.get("address")
-            if not addr:
-                continue
-            try:
-                raw = norm_raw(addr)
-            except Exception:
-                continue
-            out[raw] = {
-                "label": meta.get("label") or meta.get("name") or "",
-                "category": meta.get("category") or "",
-                "organization": meta.get("organization") or "",
-            }
+    if not CSV_PATH.exists():
+        return out
     try:
-        idx_path.write_text(json.dumps(out))
+        with CSV_PATH.open("r", encoding="utf-8", newline="") as fh:
+            for row in _csv.DictReader(fh):
+                try:
+                    raw = norm_raw(row.get("address") or "")
+                except Exception:
+                    continue
+                out[raw] = {
+                    "label": (row.get("label") or row.get("name") or "").strip(),
+                    "category": (row.get("category") or "").strip(),
+                }
+    except Exception:
+        return out
+    try:
+        INDEX_PATH.write_text(json.dumps(out))
     except Exception:
         pass
     return out
+
+
+def _labels_index(refresh: bool = False) -> dict[str, dict]:
+    """Return label index. 24h TTL + ETag revalidation; silent fallback offline."""
+    csv_age = (time.time() - CSV_PATH.stat().st_mtime) if CSV_PATH.exists() else None
+    if refresh or csv_age is None or csv_age > LABELS_TTL_HOURS * 3600:
+        _fetch_labels_csv()
+
+    # Reuse the prebuilt index if it's at least as fresh as the CSV.
+    if (
+        not refresh
+        and INDEX_PATH.exists()
+        and CSV_PATH.exists()
+        and INDEX_PATH.stat().st_mtime >= CSV_PATH.stat().st_mtime
+    ):
+        try:
+            return json.loads(INDEX_PATH.read_text())
+        except Exception:
+            pass
+
+    return _build_index()
 
 
 def lookup_label(raw: str, tonapi_name: str | None) -> str:

@@ -6,9 +6,11 @@ A minimal Python CLI wrapping the TONAPI REST API with aggressive field pruning.
 
 ## Install
 
-From repo root: `./skills/ton-analyst/setup`. Creates a venv at `skills/ton-analyst/.venv`, installs `httpx` + `pytoniq-core`, drops a wrapper at `~/.local/bin/ton`. Uninstall: `./skills/ton-analyst/setup --uninstall`.
+From repo root: `./skills/ton-analyst/setup`. The script bootstraps [uv](https://github.com/astral-sh/uv) if missing, uses `uv sync --frozen` to provision `.venv` from the committed `uv.lock`, and drops a wrapper at `~/.local/bin/ton`. Uninstall: `./skills/ton-analyst/setup --uninstall`.
 
 The repo root already ships its own `setup` script that symlinks the skill into `~/.claude/skills/`; the CLI installer is separate and lives inside the skill dir so it can be shipped/moved with it.
+
+For dev (tests), use the `dev` group: `uv sync --group dev`.
 
 Python 3.10+ required.
 
@@ -18,7 +20,7 @@ Python 3.10+ required.
 |---|---|---|---|
 | `TONAPI_API_KEY` | no | — | Bearer token for higher TONAPI rate limits. `TONAPI_KEY` also accepted. |
 | `TONAPI_BASE` | no | `https://tonapi.io` | Override API base URL. |
-| `TON_LABELS_CACHE` | no | `~/.cache/ton-labels` | Where the `ton-labels` repo is shallow-cloned for label lookups. Auto-populated on first `ton acc` call; refreshed after 7 days. |
+| `TON_LABELS_CACHE` | no | `~/.cache/ton-labels` | Where the built `ton-labels` CSV is cached (`assets.csv` + `assets.csv.etag` + `_index.json`). Fetched from the `ton-studio/ton-labels` `build` branch on first `ton acc` call; revalidated after 24h via ETag conditional GET. |
 
 ## `ton acc <addr>`
 
