@@ -51,6 +51,8 @@ This skill works best with the Dune MCP server connected. Setup: `reference/dune
 - `createDashboard` / `updateDashboard` — assemble queries into dashboards
 - `getUsage` — monitor credit consumption
 
+**Percentage fields:** Keep APY/percentage/ratio query outputs as fractions (`0.07` for 7%) when Dune visualization columns are formatted as percentages. Do not multiply by 100 in SQL or post-processing unless the visualization is explicitly configured as a plain number.
+
 **Fallback:** If MCP is unavailable, use cURL API calls (documented in api.md).
 
 ## Key Tables
