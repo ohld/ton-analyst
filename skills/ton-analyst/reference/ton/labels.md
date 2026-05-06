@@ -47,6 +47,8 @@
 
 **Early miners:** status=`uninit` (NOT `frozen`). Label=`frozen_early_miner`.
 
+**Givers:** PoW-era smart contracts that distributed mined TON. Treat Giver recipients as Early Miners, but do not group unrelated recipients into one "Givers" entity just because they share this funding origin. Only group wallets/validators when there are independent links such as shared deployers, mutual transfers, hop wallets, or operational wallets.
+
 ## CEX Infrastructure
 
 CEX = Exchange main wallets + Custodial deposit wallets. Always combine both.

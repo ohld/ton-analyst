@@ -13,6 +13,7 @@ How to investigate unlabelled addresses and submit labels to [ton-studio/ton-lab
 - Personal wallets of individual people (even if they move large amounts)
 - Addresses where we can't identify the operating entity
 - Addresses with only circumstantial evidence and no confirmed entity link
+- Validator or wallet ownership inferred only from CEX, bridge, merchant, or generic service funding
 
 ## Address Format
 
@@ -49,6 +50,7 @@ Combine at least two of these:
 
 - "This address interacts with Entity X" — many addresses interact with popular services
 - "Funded from Binance" — millions of addresses are funded from Binance
+- "Funded from a bridge, merchant, or CEX" — this shows liquidity provenance, not operator ownership
 - Shared `code_hash` alone — multiple entities use the same contract templates
 - Pattern similarity (e.g., "sends dust like a spam bot") without identifying the operator
 
@@ -210,7 +212,17 @@ LEFT JOIN dune.ton_foundation.dataset_labels L2 ON L2.address = B.first_tx_sende
 WHERE A.address = '0:TARGET_ADDRESS_HERE'
 ```
 
-### Step 6: Use TONAPI for Contract Analysis
+### Step 6: Use the `ton` CLI Before Raw TONAPI
+
+For one concrete address/account/transaction, start with the local `ton` CLI. It wraps TONAPI with field pruning and current labels/events:
+
+```bash
+ton acc 0:ADDRESS
+ton tx 0:ADDRESS --limit 50
+ton tx 0:ADDRESS --out --min-value 5 --limit 20
+```
+
+Use Dune for bulk, multi-address, historical, or time-series work. Use direct TONAPI only when `ton acc` / `ton tx --json` cannot expose the field needed for contract analysis.
 
 ```bash
 # Account info (name, interfaces, balance)
