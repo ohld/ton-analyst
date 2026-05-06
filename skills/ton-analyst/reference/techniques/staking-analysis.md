@@ -18,6 +18,17 @@ Most unstaking is **rotation** (validators moving between pools), not sell press
 
 See [flow-tracing.md](flow-tracing.md) for multi-hop ratio attribution.
 
+## Validator Attribution Rules
+
+- Do not label a validator by funding origin alone. CEX, bridge, merchant, or other service funding is liquidity provenance, not ownership.
+- Keep `@wallet` / Wallet in Telegram as an explicit exception only when it deploys or operates validators.
+- Group validators/wallets only with independent on-chain links: shared deployers, mutual transfers, hop wallets, operational wallets, or repeated controller/pool relationships.
+- For a single validator/account check, use `ton acc` and `ton tx` first. Use Dune for validator sets, historical rounds, multi-hop grouping, and time series.
+
+## Cashflow Debug Columns
+
+When maintaining native staking cashflow materialized views or queries, include trace/debug identifiers where possible: `trace_id`, `tx_hash`, `tx_lt`, and `msg_hash`. A sampled row should be cross-checkable against TONAPI/Tonviewer without reconstructing the query.
+
 ## Liquid Staking Detection
 
 Users send TON to **pool contracts**, not jetton masters:

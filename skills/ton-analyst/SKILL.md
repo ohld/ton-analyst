@@ -32,7 +32,7 @@ ton tx  <addr> [flags]            tx history (TSV): ts, lt, direction, counterpa
 
 `ton tx` flags: `--in`, `--out`, `--min-value TON`, `--since YYYY-MM-DD`, `--before YYYY-MM-DD`, `--dest ADDR`, `--limit N`, `--before-lt CURSOR`, `--json`. Pagination cursor is printed to stderr as `# next page: --before-lt <lt>`.
 
-**When to use it:** any address question — "what has this wallet done?", "is this labeled?", "what large outflows went where?". `ton acc` resolves labels via the `ton-labels` repo cache + TONAPI `account.name`; no separate label command needed.
+**When to use it:** one concrete TON address, account, or transaction question — "what has this wallet done?", "is this labeled?", "what large outflows went where?". Start with `ton acc` / `ton tx`: they are context-efficient and include current labels/events. Use direct TONAPI only when the CLI cannot expose a needed field. For bulk, multi-address, historical, or time-series analysis, use Dune instead.
 
 **Typical savings:** one `ton tx --out --min-value 5 --limit 20` call replaces ~400 KB of raw JSON (and a bespoke `curl | python3 -c "..."` parser) with ~2 KB of tab-separated rows — ~200× reduction in context bytes.
 
@@ -50,6 +50,8 @@ This skill works best with the Dune MCP server connected. Setup: `reference/dune
 - `generateVisualization` — create bar/line/area/pie charts, counters, tables from results
 - `createDashboard` / `updateDashboard` — assemble queries into dashboards
 - `getUsage` — monitor credit consumption
+
+**When to use Dune:** archive-scale work — bulk address sets, multi-hop clustering, historical backfills, time series, staking materialized views, and filtering across many accounts.
 
 **Fallback:** If MCP is unavailable, use cURL API calls (documented in api.md).
 
