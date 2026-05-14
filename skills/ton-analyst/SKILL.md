@@ -1,5 +1,6 @@
 ---
 name: ton-analyst
+version: 0.4.0
 description: >
   Analyze TON blockchain data using Dune Analytics. Triggers on: TON, Toncoin,
   Dune SQL, TON wallets, TON supply, jetton, TON DeFi, TON staking.
@@ -8,6 +9,27 @@ description: >
 # TON Analyst Skill
 
 You are a TON blockchain data analyst. You write Dune SQL queries, execute them via the Dune MCP server, generate visualizations and dashboards, and produce research reports.
+
+## Preamble (run first)
+
+When this skill is invoked, first run the bundled update check:
+
+```bash
+_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
+_TON_ANALYST_SKILL_DIR=""
+for _d in "${TON_ANALYST_SKILL_DIR:-}" "${CLAUDE_SKILL_DIR:-}" \
+  "${CODEX_HOME:-$HOME/.codex}/skills/ton-analyst" \
+  "$_ROOT/.agents/skills/ton-analyst" "$HOME/.agents/skills/ton-analyst" \
+  "$HOME/.claude/skills/ton-analyst" "./skills/ton-analyst"; do
+  [ -n "$_d" ] && [ -x "$_d/bin/ton-analyst-update-check" ] && _TON_ANALYST_SKILL_DIR="$_d" && break
+done
+_TON_ANALYST_UPD=$("$_TON_ANALYST_SKILL_DIR/bin/ton-analyst-update-check" 2>/dev/null || true)
+[ -n "$_TON_ANALYST_UPD" ] && echo "$_TON_ANALYST_UPD" || true
+```
+
+If output shows `UPDATE_AVAILABLE <old> <new>`, briefly tell the user:
+`ton-analyst v<new> is available. Claude Code: /plugin marketplace update ton-analyst, then /plugin update ton-analyst@ton-analyst, then /reload-plugins. Codex/local git: git pull the ton-analyst repo and relaunch Codex.`
+Then continue the current analysis unless the user asks to update first.
 
 ## Capabilities
 
@@ -98,6 +120,7 @@ Every research report MUST:
 - **reference/dune/** — Dune schemas (with inline mat view docs), query patterns, dashboards, API, examples
 - **reference/ton/** — TON blockchain model, labels, address investigation, TONAPI
 - **reference/techniques/** — CEX flows, flow tracing, staking, DEX wash detection, vesting, fees, MAU measurement
+- **reference/update-flow.md** — versioning and update-check flow for Claude Code and Codex/local installs
 - **reference/ton/supply-tokenomics.md** — Supply structure, inflation, frozen miners, known doc errors
 
 ## External Resources

@@ -4,9 +4,28 @@ set -euo pipefail
 SKILL_NAME="ton-analyst"
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 SKILL_SRC="$REPO_DIR/skills/$SKILL_NAME"
-SKILL_DST="$HOME/.claude/skills/$SKILL_NAME"
+HOST="claude"
 
-echo "==> Setting up $SKILL_NAME"
+if [ "${1:-}" = "--host" ]; then
+  HOST="${2:-}"
+elif [ -n "${1:-}" ]; then
+  echo "Usage: ./setup [--host claude|codex|agents]"
+  exit 2
+fi
+
+case "$HOST" in
+  claude) SKILL_ROOT="$HOME/.claude/skills" ;;
+  codex) SKILL_ROOT="${CODEX_HOME:-$HOME/.codex}/skills" ;;
+  agents) SKILL_ROOT="$HOME/.agents/skills" ;;
+  *)
+    echo "ERROR: unknown host '$HOST' (expected claude, codex, or agents)"
+    exit 2
+    ;;
+esac
+
+SKILL_DST="$SKILL_ROOT/$SKILL_NAME"
+
+echo "==> Setting up $SKILL_NAME for $HOST"
 
 # 1. Validate skill source exists
 if [ ! -f "$SKILL_SRC/SKILL.md" ]; then
@@ -15,7 +34,7 @@ if [ ! -f "$SKILL_SRC/SKILL.md" ]; then
 fi
 
 # 2. Create symlink
-mkdir -p "$HOME/.claude/skills"
+mkdir -p "$SKILL_ROOT"
 
 if [ -L "$SKILL_DST" ]; then
   current_target="$(readlink "$SKILL_DST")"
@@ -50,4 +69,4 @@ else
 fi
 
 echo ""
-echo "==> Done. Open Claude Code and ask a TON question to verify."
+echo "==> Done. Relaunch your agent and ask a TON question to verify."

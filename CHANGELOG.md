@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 — 2026-05-14
+
+### Added
+- Built-in skill update check that runs when the skill is invoked and tells users when a newer published version is available
+- `skills/ton-analyst/VERSION` as the runtime version source used by the update checker
+- `reference/update-flow.md` documenting Claude Code marketplace and Codex/local git update paths
+- CI checks that keep the marketplace version, skill frontmatter version, and runtime `VERSION` file in sync
+
+### Changed
+- Corrected plugin update docs to use the marketplace id `ton-analyst` and added Codex/local install notes
+- Version bump: 0.3.0 → 0.4.0
+
 ## 0.3.0 — 2026-04-17
 
 ### Added
