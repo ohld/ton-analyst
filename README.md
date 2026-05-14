@@ -6,7 +6,7 @@ Claude Code skill for TON blockchain data analysis on [Dune Analytics](https://d
 
 - Generates Dune SQL queries for TON on-chain analysis
 - Executes queries via Dune API and analyzes results
-- Covers supply distribution, wallet analysis, token flows, DeFi activity, staking, CEX flows
+- Covers supply distribution, wallet analysis, token flows, DeFi activity, staking, CEX flows, DEX bots/MEV
 - Includes battle-tested SQL patterns for 13-category supply classification, real user filtering, whale tiers
 
 ## Install
@@ -110,6 +110,7 @@ skills/ton-analyst/
 - [Dune TON Tables Overview](https://docs.dune.com/data-catalog/ton/overview)
 - [TON Documentation](https://docs.ton.org/)
 - [TON Verticals Dashboard](https://dune.com/ton_foundation/verticals)
+- [TON DEX traders smart-contract evolution](https://dune.com/pshuvalov/ton-traders-types-analysis)
 - [Dune Spellbook — TON models](https://github.com/duneanalytics/spellbook/tree/main/dbt_subprojects/daily_spellbook/models/ton)
 - [ton-studio/ton-labels](https://github.com/ton-studio/ton-labels/) — address labels source
 - [TON On-Chain Data Analysis on Dune](https://ton.org/en/ton-on-chain-data-analysis-dune)
