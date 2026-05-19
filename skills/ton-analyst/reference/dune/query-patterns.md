@@ -30,6 +30,7 @@ CTEs, classification logic, and conventions for TON Dune queries.
 24. **Auction sales have NULL `trace_id`.** Use COALESCE to fall back to NFT item address for transaction links: `COALESCE('https://tonviewer.com/transaction/' || LOWER(TO_HEX(FROM_BASE64(E.trace_id))), 'https://tonviewer.com/' || ton_address_raw_to_user_friendly(E.nft_item_address, true))`.
 25. **User wallet addresses: use non-bounceable (UQ).** `ton_address_raw_to_user_friendly(addr, false)` for user wallets — UQ prefix is the standard for displaying wallet addresses of real users. Bounceable (EQ) is for smart contracts.
 26. **Query updates: prefer MCP `updateDuneQuery`, fallback to CLI.** `updateDuneQuery` (MCP) handles SQL/name/tags cleanly. If MCP is unavailable, use `dune query update <id> --sql "..." --name "..." --tags "x,y"`. Never use REST API PATCH — it's broken for name/SQL updates.
+27. **Priority mining uses `msg_hash`, not gas price.** TON has no Ethereum-style MAB. Detect hash mining by comparing root outbound `ton.messages.msg_hash` distributions against random expectation (`high_bit_share` near `0.5`). A low share plus sufficient DEX activity is a priority-mining signal; see [priority-mining.md](../techniques/priority-mining.md).
 
 ## ALL_LABELS + REAL_USERS
 
