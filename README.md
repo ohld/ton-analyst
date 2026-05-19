@@ -71,30 +71,22 @@ Python 3.10+, deps = `httpx` + `pytoniq-core`. Optional env: `TONAPI_API_KEY` (h
 
 ```
 skills/ton-analyst/
-├── SKILL.md                    # Entry point — capabilities, CLI, key tables
+├── SKILL.md                    # Entry point — update check, routing, core rules
+├── VERSION                     # Runtime version used by the update checker
 ├── bin/
-│   ├── ton                     # the CLI
+│   ├── ton                     # TONAPI CLI wrapper
+│   ├── ton-analyst-update-check
 │   └── TODO.md                 # deferred subcommand ideas
 ├── setup                       # venv + wrapper installer
-├── requirements.txt            # httpx, pytoniq-core (runtime)
-├── requirements-dev.txt        # + pytest, pytest-asyncio
-├── tests/                      # pytest suite (35 tests, httpx.MockTransport — no network)
+├── pyproject.toml              # CLI dependencies and pytest config
+├── uv.lock
+├── tests/                      # pytest suite, httpx.MockTransport — no network
 └── reference/
     ├── cli.md                  # `ton` CLI reference
-    ├── tables.md               # Table schemas (12 tables)
-    ├── labels.md               # Labels, key addresses, CEX, sybil
-    ├── patterns.md             # Gotchas, reusable CTEs, classification logic
-    ├── dune-api.md             # API docs, research workflow
-    ├── ton-blockchain.md       # TON concepts, address formats, staking
-    └── examples/               # Battle-tested SQL queries
-        ├── README.md           # Index of examples
-        ├── supply-breakdown.sql
-        ├── real-wallets-ton.sql
-        ├── real-wallets-usdt.sql
-        ├── net-value-flow.sql
-        ├── nft-names.sql
-        ├── trace-fees.sql
-        └── filter-interfaces.sql
+    ├── update-flow.md          # Versioning and local/marketplace update flow
+    ├── dune/                   # MCP/API workflow, schemas, query patterns, examples
+    ├── ton/                    # TON model, TONAPI, labels, address investigation
+    └── techniques/             # CEX flows, staking, vesting, MEV, MAU, fees
 ```
 
 ## Key tables covered
@@ -109,18 +101,16 @@ skills/ton-analyst/
 ## Local Development
 
 1. Clone the repo
-2. Install locally — either:
-   - `claude --plugin-dir ./path/to/ton-analyst` (per-session), or
-   - Symlink: `ln -s /path/to/ton-analyst/skills/ton-analyst ~/.claude/skills/ton-analyst`
+2. Install locally: `./setup --host codex`, `./setup --host agents`, or `./setup --host claude`
 3. Edit files in `skills/ton-analyst/`
-4. Test: open Claude Code and ask a TON-related question — verify your changes are picked up
+4. Run tests: `cd skills/ton-analyst && uv run pytest`
 5. Submit a PR with your changes
 
 ### What to contribute
 
-- New SQL examples — add `.sql` file in `reference/examples/`
-- New table schemas or gotchas — edit `reference/tables.md` or `reference/patterns.md`
-- New labels or address discoveries — edit `reference/labels.md`
+- New SQL examples — add `.sql` files in `reference/dune/examples/`
+- New table schemas or gotchas — edit `reference/dune/schemas/` or `reference/dune/query-patterns.md`
+- New labels or address discoveries — edit `reference/ton/labels.md`
 - Bug fixes in existing SQL — edit the relevant file
 
 ## Resources

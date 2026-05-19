@@ -12,6 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: astral-sh/setup-uv@v8
+
       - name: Check manifest exists and is valid JSON
         run: |
           echo "Checking marketplace.json..."
@@ -78,6 +80,14 @@ jobs:
             exit 1
           fi
 
+      - name: Reject generated cache artifacts
+        run: |
+          if git ls-files | grep -E '(^|/)(__pycache__|\.pytest_cache|\.venv)(/|$)|\.pyc$'; then
+            echo "ERROR: generated cache artifacts must not be tracked"
+            exit 1
+          fi
+          echo "OK: no generated cache artifacts tracked"
+
       - name: Validate version consistency
         run: |
           manifest_ver=$(python3 -c "import json; print(json.load(open('.claude-plugin/marketplace.json'))['plugins'][0]['version'])")
@@ -138,3 +148,7 @@ jobs:
             exit 1
           fi
           echo "OK: update checker is executable"
+
+      - name: Run CLI tests
+        working-directory: skills/ton-analyst
+        run: uv run pytest
