@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# Check whether a newer ton-analyst skill version is published.
+#
+# Output:
+#   UPDATE_AVAILABLE <local> <remote>
+#   (nothing when up to date, disabled, offline, or cached quiet)
+set -euo pipefail
+
+SKILL_DIR="${TON_ANALYST_SKILL_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+STATE_DIR="${TON_ANALYST_STATE_DIR:-$HOME/.ton-analyst}"
+CACHE_FILE="$STATE_DIR/last-update-check"
+VERSION_FILE="${TON_ANALYST_VERSION_FILE:-$SKILL_DIR/VERSION}"
+REMOTE_URL="${TON_ANALYST_REMOTE_VERSION_URL:-https://raw.githubusercontent.com/ohld/ton-analyst/main/skills/ton-analyst/VERSION}"
+UP_TO_DATE_TTL_MIN="${TON_ANALYST_UP_TO_DATE_TTL_MIN:-60}"
+UPDATE_TTL_MIN="${TON_ANALYST_UPDATE_TTL_MIN:-720}"
+
+case "${TON_ANALYST_UPDATE_CHECK:-1}" in
+  0|false|FALSE|off|OFF) exit 0 ;;
+esac
+
+if [ "${1:-}" = "--force" ]; then
+  rm -f "$CACHE_FILE"
+fi
+
+read_version() {
+  tr -d '[:space:]' < "$1" 2>/dev/null || true
+}
+
+is_version() {
+  printf '%s\n' "$1" | grep -Eq '^[0-9]+(\.[0-9]+){1,3}$'
+}
+
+version_gt() {
+  awk -v remote="$1" -v local="$2" 'BEGIN {
+    split(remote, r, ".")
+    split(local, l, ".")
+    for (i = 1; i <= 4; i++) {
+      rv = r[i] + 0
+      lv = l[i] + 0
+      if (rv > lv) exit 0
+      if (rv < lv) exit 1
+    }
+    exit 1
+  }'
+}
+
+cache_is_fresh() {
+  local ttl="$1"
+  case "$ttl" in *[!0-9]*|'') return 1 ;; esac
+  [ "$ttl" -gt 0 ] || return 1
+  [ -f "$CACHE_FILE" ] || return 1
+  [ -z "$(find "$CACHE_FILE" -mmin +"$ttl" 2>/dev/null || true)" ]
+}
+
+emit_cached_if_valid() {
+  [ -f "$CACHE_FILE" ] || return 1
+  local cached cached_local cached_remote
+  cached="$(cat "$CACHE_FILE" 2>/dev/null || true)"
+  case "$cached" in
+    UP_TO_DATE\ *)
+      cache_is_fresh "$UP_TO_DATE_TTL_MIN" || return 1
+      [ "$(printf '%s\n' "$cached" | awk '{print $2}')" = "$LOCAL" ] || return 1
+      return 0
+      ;;
+    UPDATE_AVAILABLE\ *)
+      cache_is_fresh "$UPDATE_TTL_MIN" || return 1
+      cached_local="$(printf '%s\n' "$cached" | awk '{print $2}')"
+      cached_remote="$(printf '%s\n' "$cached" | awk '{print $3}')"
+      [ "$cached_local" = "$LOCAL" ] || return 1
+      [ -n "$cached_remote" ] || return 1
+      printf '%s\n' "$cached"
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+LOCAL="$(read_version "$VERSION_FILE")"
+if ! is_version "$LOCAL"; then
+  exit 0
+fi
+
+emit_cached_if_valid && exit 0
+
+mkdir -p "$STATE_DIR"
+REMOTE="$(curl -fsS --max-time 5 "$REMOTE_URL" 2>/dev/null || true)"
+REMOTE="$(printf '%s\n' "$REMOTE" | tr -d '[:space:]')"
+
+if ! is_version "$REMOTE"; then
+  printf 'UP_TO_DATE %s\n' "$LOCAL" > "$CACHE_FILE"
+  exit 0
+fi
+
+if ! version_gt "$REMOTE" "$LOCAL"; then
+  printf 'UP_TO_DATE %s\n' "$LOCAL" > "$CACHE_FILE"
+  exit 0
+fi
+
+printf 'UPDATE_AVAILABLE %s %s\n' "$LOCAL" "$REMOTE" > "$CACHE_FILE"
+printf 'UPDATE_AVAILABLE %s %s\n' "$LOCAL" "$REMOTE"

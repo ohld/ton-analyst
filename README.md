@@ -15,10 +15,28 @@ In Claude Code, run:
 
 ```
 /plugin marketplace add ohld/ton-analyst
-/plugin install ton-analyst@ohld-ton-analyst
+/plugin install ton-analyst@ton-analyst
 ```
 
-This adds the repo as a marketplace source and installs the skill. Auto-updates are enabled by default — you'll get new patterns and fixes as they're pushed.
+This adds the repo as a marketplace source and installs the skill.
+
+Codex/local install: `./setup --host codex`. Other local hosts: `./setup --host agents` or `./setup --host claude`.
+
+## Updates
+
+ton-analyst uses explicit versions. When the skill is invoked, it checks the published `VERSION` file and tells you if a newer release is available. Full flow: [`skills/ton-analyst/reference/update-flow.md`](skills/ton-analyst/reference/update-flow.md).
+
+To update manually in Claude Code:
+
+```
+/plugin marketplace update ton-analyst
+/plugin update ton-analyst@ton-analyst
+/reload-plugins
+```
+
+Claude Code can also auto-update marketplaces at startup when auto-update is enabled for the marketplace in `/plugin` → Marketplaces.
+
+For Codex/local git installs, pull the repo (`git -C /path/to/ton-analyst pull --ff-only`) and relaunch the agent.
 
 ## Quick start
 

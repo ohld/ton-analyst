@@ -22,6 +22,8 @@ jobs:
         run: |
           files=(
             "skills/ton-analyst/SKILL.md"
+            "skills/ton-analyst/VERSION"
+            "skills/ton-analyst/bin/ton-analyst-update-check"
             "README.md"
             "LICENSE"
             "CHANGELOG.md"
@@ -49,6 +51,7 @@ jobs:
             "skills/ton-analyst/reference/ton/api.md"
             "skills/ton-analyst/reference/techniques/cex-flows.md"
             "skills/ton-analyst/reference/techniques/flow-tracing.md"
+            "skills/ton-analyst/reference/update-flow.md"
           )
           for f in "${refs[@]}"; do
             if [ ! -f "$f" ]; then
@@ -78,12 +81,50 @@ jobs:
       - name: Validate version consistency
         run: |
           manifest_ver=$(python3 -c "import json; print(json.load(open('.claude-plugin/marketplace.json'))['plugins'][0]['version'])")
+          skill_ver=$(awk -F': *' '/^version:/ {print $2; exit}' skills/ton-analyst/SKILL.md)
+          file_ver=$(tr -d '[:space:]' < skills/ton-analyst/VERSION)
           echo "Manifest version: $manifest_ver"
-          if [ -z "$manifest_ver" ]; then
-            echo "ERROR: No version in marketplace.json"
+          echo "Skill version:    $skill_ver"
+          echo "VERSION file:     $file_ver"
+          if [ -z "$manifest_ver" ] || [ -z "$skill_ver" ] || [ -z "$file_ver" ]; then
+            echo "ERROR: Missing version"
+            exit 1
+          fi
+          if [ "$manifest_ver" != "$skill_ver" ] || [ "$manifest_ver" != "$file_ver" ]; then
+            echo "ERROR: Version mismatch"
             exit 1
           fi
           echo "OK: version $manifest_ver"
+
+      - name: Check update checker
+        run: |
+          tmp="$(mktemp -d)"
+          current_ver=$(tr -d '[:space:]' < skills/ton-analyst/VERSION)
+          remote_ver="999.999.999"
+          printf '%s\n' "$current_ver" > "$tmp/remote-version"
+          out=$(TON_ANALYST_STATE_DIR="$tmp/state" TON_ANALYST_REMOTE_VERSION_URL="file://$tmp/remote-version" skills/ton-analyst/bin/ton-analyst-update-check --force)
+          if [ -n "$out" ]; then
+            echo "ERROR: expected no output when remote version matches, got: $out"
+            exit 1
+          fi
+          printf '0.0.1\n' > "$tmp/remote-version"
+          out=$(TON_ANALYST_STATE_DIR="$tmp/state" TON_ANALYST_REMOTE_VERSION_URL="file://$tmp/remote-version" skills/ton-analyst/bin/ton-analyst-update-check --force)
+          if [ -n "$out" ]; then
+            echo "ERROR: expected no output when remote version is older, got: $out"
+            exit 1
+          fi
+          printf '%s\n' "$remote_ver" > "$tmp/remote-version"
+          out=$(TON_ANALYST_STATE_DIR="$tmp/state" TON_ANALYST_REMOTE_VERSION_URL="file://$tmp/remote-version" skills/ton-analyst/bin/ton-analyst-update-check --force)
+          if [ "$out" != "UPDATE_AVAILABLE $current_ver $remote_ver" ]; then
+            echo "ERROR: unexpected update output: $out"
+            exit 1
+          fi
+          replay=$(TON_ANALYST_STATE_DIR="$tmp/state" TON_ANALYST_REMOTE_VERSION_URL="file://$tmp/remote-version" skills/ton-analyst/bin/ton-analyst-update-check)
+          if [ "$replay" != "UPDATE_AVAILABLE $current_ver $remote_ver" ]; then
+            echo "ERROR: unexpected cached update output: $replay"
+            exit 1
+          fi
+          echo "OK: update checker"
 
       - name: Check setup script is executable
         run: |
@@ -92,3 +133,8 @@ jobs:
             exit 1
           fi
           echo "OK: setup is executable"
+          if [ ! -x "skills/ton-analyst/bin/ton-analyst-update-check" ]; then
+            echo "ERROR: update checker is not executable"
+            exit 1
+          fi
+          echo "OK: update checker is executable"
