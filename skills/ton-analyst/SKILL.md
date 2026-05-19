@@ -1,6 +1,6 @@
 ---
 name: ton-analyst
-version: 0.4.4
+version: 0.4.5
 description: >
   Analyze TON blockchain data using Dune Analytics. Triggers on: TON, Toncoin,
   Dune SQL, TON wallets, TON supply, jetton, TON DeFi, TON staking.
