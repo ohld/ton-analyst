@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   bump:
-    if: github.actor != 'github-actions[bot]' && !contains(github.event.head_commit.message, '[skip version bump]')
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -76,5 +76,5 @@ jobs:
             echo "No version changes to commit."
             exit 0
           fi
-          git commit -m "chore: bump ton-analyst version to ${{ steps.bump.outputs.NEW_VERSION }} [skip version bump]"
+          git commit -m "chore: bump ton-analyst version to ${{ steps.bump.outputs.NEW_VERSION }}"
           git push

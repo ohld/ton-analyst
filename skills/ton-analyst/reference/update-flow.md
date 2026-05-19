@@ -19,6 +19,9 @@ Most PRs do not need to edit these version files. After a PR is merged into
 `main`, `.github/workflows/bump-version-on-main.yml` increments the patch version
 unless that push already changed `VERSION`. This keeps small documentation and
 reference updates publishable without manual version edits in every PR.
+The workflow intentionally skips based on the GitHub Actions bot actor and actual
+`VERSION` file changes, not commit-message markers; squash merges can carry old
+commit bodies into the main push message.
 
 First-run caveat: users on versions before 0.4.0 do not have this checker yet.
 They need one normal marketplace/local git update to receive 0.4.0; after that,
