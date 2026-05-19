@@ -91,6 +91,8 @@ Use `generateVisualization` after query execution to create:
 - **Counters** — single KPI values (total supply, TVL)
 - **Tables** — detailed data with clickable links
 
+When configuring a visualization column as a percentage, the underlying query value must stay a ratio: `0.07` renders as `7%`. This applies to APY/APR/yield, share, rate, and other percent fields. Do not output `7` for `7%` unless the visualization is intentionally formatted as a plain number.
+
 ## Fallback: cURL API
 
 If MCP is unavailable, use direct API calls.
@@ -127,7 +129,7 @@ CLI works reliably for name/SQL updates; the REST API PATCH endpoint is broken f
 
 - **Always `is_private: true`** — never create public queries
 - **Always `LIMIT 50`** for exploratory queries
-- Don't multiply percentages by 100 or divide TON by 1e6 — Dune UI handles display formatting
+- Don't multiply percentage ratios by 100 or divide TON by 1e6 — Dune UI handles display formatting. For percentage-formatted visualizations, `0.07` means `7%`, not `0.07%`.
 - Check `getUsage` periodically to track credit consumption
 
 ## Research Workflow
