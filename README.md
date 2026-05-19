@@ -1,6 +1,8 @@
 # ton-analyst
 
-Claude Code skill for TON blockchain data analysis on [Dune Analytics](https://dune.com).
+TON blockchain data analysis skill for Claude Code, Codex, and local agents.
+Built around [Dune Analytics](https://dune.com), TONAPI, and context-efficient
+reference files.
 
 ## What it does
 
@@ -11,7 +13,9 @@ Claude Code skill for TON blockchain data analysis on [Dune Analytics](https://d
 
 ## Install
 
-In Claude Code, run:
+### Claude Code
+
+Install from the Claude Code marketplace:
 
 ```
 /plugin marketplace add ohld/ton-analyst
@@ -20,7 +24,33 @@ In Claude Code, run:
 
 This adds the repo as a marketplace source and installs the skill.
 
-Codex/local install: `./setup --host codex`. Other local hosts: `./setup --host agents` or `./setup --host claude`.
+### Codex
+
+Codex loads skills from `${CODEX_HOME:-~/.codex}/skills`. Clone the repo once,
+then symlink the skill into Codex:
+
+```
+git clone https://github.com/ohld/ton-analyst.git
+cd ton-analyst
+./setup --host codex
+```
+
+Relaunch Codex after installation so the skill is reloaded. The installer is
+idempotent: rerunning it updates the symlink if the checkout moved.
+
+### Other Local Agents
+
+For agents that read `~/.agents/skills`, run:
+
+```
+./setup --host agents
+```
+
+For a local Claude-style personal skill install, run:
+
+```
+./setup --host claude
+```
 
 ## Updates
 
@@ -37,10 +67,11 @@ To update manually in Claude Code:
 Claude Code can also auto-update marketplaces at startup when auto-update is enabled for the marketplace in `/plugin` → Marketplaces.
 
 For Codex/local git installs, pull the repo (`git -C /path/to/ton-analyst pull --ff-only`) and relaunch the agent.
+If the `ton` CLI wrapper is installed, rerun `./skills/ton-analyst/setup` after pulling.
 
 ## Quick start
 
-After installing, ask Claude Code:
+After installing, ask your agent:
 
 > "What is the current TON supply breakdown by holder type?"
 
@@ -105,6 +136,8 @@ skills/ton-analyst/
 3. Edit files in `skills/ton-analyst/`
 4. Run tests: `cd skills/ton-analyst && uv run pytest`
 5. Submit a PR with your changes
+
+Architecture backlog: [`docs/professionalization-plan.md`](docs/professionalization-plan.md).
 
 ### What to contribute
 

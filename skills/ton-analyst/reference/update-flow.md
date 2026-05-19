@@ -64,7 +64,14 @@ State lives in `~/.ton-analyst/last-update-check`.
 When `UPDATE_AVAILABLE` appears, the agent should mention the update briefly and
 continue the requested analysis unless the user asks to update first.
 
-Claude Code marketplace install:
+### Claude Code Install
+
+```
+/plugin marketplace add ohld/ton-analyst
+/plugin install ton-analyst@ton-analyst
+```
+
+### Claude Code Update
 
 ```
 /plugin marketplace update ton-analyst
@@ -72,7 +79,17 @@ Claude Code marketplace install:
 /reload-plugins
 ```
 
-Codex or local git install:
+### Codex Install
+
+Codex reads skills from `${CODEX_HOME:-~/.codex}/skills`. Clone this repo and run:
+
+```
+./setup --host codex
+```
+
+Then relaunch Codex so it reloads the skill.
+
+### Codex / Local Git Update
 
 ```
 git -C /path/to/ton-analyst pull --ff-only
