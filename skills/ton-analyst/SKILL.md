@@ -121,6 +121,7 @@ Every research report MUST:
 - **reference/ton/** — TON blockchain model, labels, address investigation, TONAPI
 - **reference/techniques/** — CEX flows, flow tracing, staking, DEX wash detection, vesting, fees, MAU measurement
 - **reference/update-flow.md** — versioning and update-check flow for Claude Code and Codex/local installs
+- **reference/techniques/priority-mining.md** — TON MEV/priority mining via message hash signals and deployer-wallet workflow
 - **reference/ton/supply-tokenomics.md** — Supply structure, inflation, frozen miners, known doc errors
 
 ## External Resources
@@ -129,6 +130,7 @@ Every research report MUST:
 - [Dune TON Tables Overview](https://docs.dune.com/data-catalog/ton/overview)
 - [TON Documentation](https://docs.ton.org/)
 - [TON Verticals Dashboard](https://dune.com/ton_foundation/verticals) — the main TON dashboard
+- [TON DEX traders smart-contract evolution](https://dune.com/pshuvalov/ton-traders-types-analysis) — priority mining and trader contract types
 - [Dune Spellbook — TON models](https://github.com/duneanalytics/spellbook/tree/main/dbt_subprojects/daily_spellbook/models/ton)
 - [ton-studio/ton-labels](https://github.com/ton-studio/ton-labels/) — address labels source repo
 - [TON On-Chain Data Analysis on Dune](https://ton.org/en/ton-on-chain-data-analysis-dune) — intro to tables, optimization tips

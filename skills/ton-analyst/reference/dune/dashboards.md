@@ -10,6 +10,7 @@ Reference dashboards with battle-tested queries. Read their SQL before writing f
 | NFT | https://dune.com/ton_foundation/nft | Cross-chain NFT comparison |
 | Staking | https://dune.com/ton_foundation/staking | Staking flows, nominator pools, APY |
 | TON Believers Fund | https://dune.com/ton_foundation/ton-believers-fund | Unlock tracking, destination analysis |
+| TON DEX traders smart-contract evolution | https://dune.com/pshuvalov/ton-traders-types-analysis | Trader contract types, highload wallets, priority-mining hash signal |
 
 ### How to Read Dashboard Queries
 

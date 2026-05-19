@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Priority-mining / TON MEV reference based on the public TON DEX traders dashboard
+- Compact SQL snippets for hash-signal detection and deployer/bot-cluster analysis
+
 ## 0.4.0 — 2026-05-14
 
 ### Added
