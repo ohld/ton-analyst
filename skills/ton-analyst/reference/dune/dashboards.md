@@ -11,6 +11,7 @@ Reference dashboards with battle-tested queries. Read their SQL before writing f
 | Staking | https://dune.com/ton_foundation/staking | Staking flows, nominator pools, APY |
 | TON Believers Fund | https://dune.com/ton_foundation/ton-believers-fund | Unlock tracking, destination analysis |
 | TON DEX traders smart-contract evolution | https://dune.com/pshuvalov/ton-traders-types-analysis | Trader contract types, highload wallets, priority-mining hash signal |
+| Trading Bots on TON | https://dune.com/xrocket_tg/trading-bots-on-ton | Telegram trading-bot fees, inferred volume, unique fee payers, `query_id` attribution |
 
 ### How to Read Dashboard Queries
 

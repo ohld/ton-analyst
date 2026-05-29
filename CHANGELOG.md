@@ -6,6 +6,7 @@
 - Priority-mining / TON MEV reference based on the public TON DEX traders dashboard
 - Compact SQL snippets for hash-signal detection and deployer/bot-cluster analysis
 - DuneSQL guidance for TON `interfaces` arrays, custodial-wallet self-message filtering, materialized-view refresh checks, and date-parameter handling
+- Trading-bot adoption reference and SQL examples based on the xRocket public Dune dashboard
 
 ## 0.4.0 — 2026-05-14
 

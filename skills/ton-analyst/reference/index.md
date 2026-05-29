@@ -14,6 +14,7 @@ wallet research.
 | CEX and custodial flows | [techniques/cex-flows.md](techniques/cex-flows.md) |
 | Real-user filtering / MAU | [techniques/mau-measurement.md](techniques/mau-measurement.md) |
 | Flow tracing | [techniques/flow-tracing.md](techniques/flow-tracing.md) |
+| Trading bot adoption / fees | [techniques/trading-bot-adoption.md](techniques/trading-bot-adoption.md), [dune/examples/trading-bot-fee-adoption.sql](dune/examples/trading-bot-fee-adoption.sql), [dune/examples/trading-bot-query-id-dex-volume.sql](dune/examples/trading-bot-query-id-dex-volume.sql) |
 | Staking | [techniques/staking-analysis.md](techniques/staking-analysis.md) |
 | NFT / Fragment sales | [dune/schemas/nft-events.md](dune/schemas/nft-events.md) |
 | Repeated mistakes | [local-learnings.md](local-learnings.md), then promote stable rules into the relevant reference |
