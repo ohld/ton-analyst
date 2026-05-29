@@ -4,6 +4,8 @@ Goal: keep `ton-analyst` compact, but make it feel like a professional skill
 product: predictable installs, small hot context, strong validation, and clear
 operating rules.
 
+Focused next-step proposal: [`skill-architecture-refactor.md`](skill-architecture-refactor.md).
+
 ## Principles
 
 - **Module:** one durable capability with a clear Interface and Implementation.
