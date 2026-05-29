@@ -10,12 +10,12 @@ CTEs, classification logic, and conventions for TON Dune queries.
 4. **`result_custodial_wallets` is NOT just CEX.** Contains ~10.8M addresses including Telegram-hosted wallets. Filter `WHERE category = 'CEX'`.
 5. **DeFi pool addresses are often NOT in dataset_labels.** Build DEFI_LABELS CTE from `result_dex_pools_latest` + `result_external_balances_history` — see below.
 6. **Early miners are `uninit` NOT `frozen`.** Label=`frozen_early_miner`, status=`uninit`.
-7. **Balance is in nanoTON.** Always divide by `1e9`.
-8. **Never sum TON + USDT** — different prices. Show separate columns.
+7. **Native TON balance is in nanoTON.** In `ton.accounts`, `ton.messages`, `ton.latest_balances`, and `ton.balances_history`, divide raw TON by `1e9`. See [assets.md](assets.md).
+8. **Never sum TON + USDT** — different assets and prices. Show separate columns. Canonical USDT is `0:B113A994B5024A16719F69139328EB759596C38A25F59028B146FECDC3621DFE` with 6 decimals.
 9. **Always add `LIMIT 50`** when exploring. TON has 145M+ accounts.
 10. **Wallet detection via interfaces:** `cardinality(FILTER(interfaces, i -> regexp_like(i, '^wallet_'))) > 0`
 11. **Change-log tables:** No row = no change. Use `MAX_BY` for snapshots — see ../techniques/flow-tracing.md (FORWARD_FILL).
-12. **Asset naming:** `'TON'` in balances_history vs `'0:0000000000000000000000000000000000000000000000000000000000000000'` in external_balances — normalize when merging.
+12. **Asset naming:** `'TON'` in `balances_history` / `latest_balances` vs `'0:0000000000000000000000000000000000000000000000000000000000000000'` in external balances — normalize when merging.
 13. **`code_hash` classifies unlabeled contracts.** Nominator pools, vesting, multisig — all identifiable by code_hash. See Code Hash Reference below.
 14. **All addresses in Dune are RAW UPPERCASE.** Always write addresses in uppercase directly (e.g. `'0:B113A994B5024A16719F69139328EB759596C38A25F59028B146FECDC3621DFE'`). Never use `UPPER()` — just capitalize the address in the SQL.
 15. **Complex queries timeout on Dune.** Queries with 3+ heavy CTE joins (DEFI_LABELS + LABELS + accounts + messages) often return empty results silently. Split into sequential simpler queries: first get addresses, then classify separately.

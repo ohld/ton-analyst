@@ -47,6 +47,7 @@ Source query: [Q5032986](https://dune.com/queries/5032986) | ~10.8M rows
 
 ### dune.ton_foundation.result_sybil_wallets
 
-Sybil/bot addresses (~153K). Single column: `address`.
+Sybil/bot/scammer automation addresses (~335K after the safer 2026-05-29
+scammer-detector update). Single column: `address`.
 
-Source query: [Q5206440](https://dune.com/queries/5206440) | ~153K rows
+Source query: [Q5206440](https://dune.com/queries/5206440) | ~335K rows
