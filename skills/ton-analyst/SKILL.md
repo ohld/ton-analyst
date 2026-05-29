@@ -12,7 +12,9 @@ You are a TON blockchain data analyst. You write Dune SQL queries, execute them 
 
 ## Preamble (run first)
 
-When this skill is invoked, first run the bundled update check:
+When this skill is invoked, first run the bundled bootstrap check. It compares
+the installed version with the public GitHub `VERSION` file and auto-updates
+clean git-backed installs before analysis starts.
 
 ```bash
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
@@ -21,15 +23,21 @@ for _d in "${TON_ANALYST_SKILL_DIR:-}" "${CLAUDE_SKILL_DIR:-}" \
   "${CODEX_HOME:-$HOME/.codex}/skills/ton-analyst" \
   "$_ROOT/.agents/skills/ton-analyst" "$HOME/.agents/skills/ton-analyst" \
   "$HOME/.claude/skills/ton-analyst" "./skills/ton-analyst"; do
-  [ -n "$_d" ] && [ -x "$_d/bin/ton-analyst-update-check" ] && _TON_ANALYST_SKILL_DIR="$_d" && break
+  [ -n "$_d" ] && [ -x "$_d/bin/ton-analyst-bootstrap" ] && _TON_ANALYST_SKILL_DIR="$_d" && break
 done
-_TON_ANALYST_UPD=$("$_TON_ANALYST_SKILL_DIR/bin/ton-analyst-update-check" 2>/dev/null || true)
-[ -n "$_TON_ANALYST_UPD" ] && echo "$_TON_ANALYST_UPD" || true
+if [ -n "$_TON_ANALYST_SKILL_DIR" ]; then
+  _TON_ANALYST_UPD=$("$_TON_ANALYST_SKILL_DIR/bin/ton-analyst-bootstrap" 2>/dev/null || true)
+  [ -n "$_TON_ANALYST_UPD" ] && echo "$_TON_ANALYST_UPD" || true
+fi
 ```
 
-If output shows `UPDATE_AVAILABLE <old> <new>`, briefly tell the user:
-`ton-analyst v<new> is available. Claude Code: /plugin marketplace update ton-analyst, then /plugin update ton-analyst@ton-analyst, then /reload-plugins. Codex/local git: git pull the ton-analyst repo and relaunch Codex.`
-Then continue the current analysis unless the user asks to update first.
+If output shows `UPDATED <old> <new> <dir>`, briefly tell the user that
+`ton-analyst` updated, immediately read `<dir>/SKILL.md` if available, and
+continue using the updated instructions.
+
+If output shows `UPDATE_AVAILABLE <old> <new> AUTO_UPDATE_SKIPPED ...` or
+`AUTO_UPDATE_DISABLED`, briefly tell the user the reason and continue the
+current analysis.
 
 ## Capabilities
 
@@ -111,21 +119,14 @@ Full schemas: reference/dune/schemas/
 - For `array(varchar)` columns such as `ton.accounts.interfaces`, use `array_join(interfaces, ',')` for display and `FILTER`/`cardinality` for predicates. Do not `CAST(array AS varchar)`.
 - In counterparty and custodial-wallet classification, ignore exact self-messages (`source = destination`) as technical wallet/contract mechanics, while still requiring at least one non-self transfer to a labelled organization.
 
-## Report Format
-
-Every research report MUST:
-
-1. **Addresses must be tonviewer hyperlinks.** Truncated display OK, full address in URL:
-   `[0:ED16...F8A7](https://tonviewer.com/0:ED1691307050047117B998B561D8DE82D31FBF84910CED6EB5FC92E7485EF8A7)` — bare truncated addresses are unverifiable.
-2. **Save query logs** alongside the report — every SQL query + results in a `queries/` subfolder (e.g. `queries/01-outflows.sql` + `queries/01-outflows.json`).
-3. **Include methodology** — what tables were used, how many hops traced, what classification logic applied.
-
 ## Reference
 
 - `reference/index.md` — start here to route tasks to the right narrow reference
+- `reference/report-format.md` — mandatory report output and query-log rules
 - `reference/dune/assets.md` — native TON and canonical USDT constants/snippets
-- **reference/dune/** — Dune schemas (with inline mat view docs), query patterns, dashboards, API, examples
-- **reference/ton/** — TON blockchain model, labels, address investigation, TONAPI
+- `reference/dune/query-patterns.md` — router for Dune gotchas and reusable CTEs
+- **reference/dune/** — Dune schemas, dashboards, API, examples, and patterns
+- **reference/ton/** — TON blockchain model, labels, wallet investigation, TONAPI
 - **reference/techniques/** — CEX flows, flow tracing, staking, trading bots, DEX wash detection, vesting, fees, MAU measurement
 - **reference/update-flow.md** — versioning and update-check flow for Claude Code and Codex/local installs
 - **reference/techniques/priority-mining.md** — TON MEV/priority mining via message hash signals and deployer-wallet workflow

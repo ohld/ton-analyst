@@ -13,7 +13,7 @@ TON supply structure, inflation mechanics, and common errors in official documen
 | Telegram vesting | Identified via `code_hash` in `ton.accounts` | 1440-day vesting, 360-day cliff |
 | Liquid staking | `dataset_labels WHERE category = 'liquid-staking'` | Subset of total staking |
 
-Use Dune query on `ton.latest_balance` + classification CTEs from [query-patterns.md](../dune/query-patterns.md) (ADDRESS_CLASSIFICATION).
+Use Dune query on `ton.latest_balance` + classification CTEs from [address-classification.md](../dune/patterns/address-classification.md).
 
 ## Inflation Mechanics
 
@@ -53,4 +53,4 @@ Corrections to commonly cited sources:
 - **Inflation vs circulating.** Always specify denominator: % of total supply or % of circulating.
 - **Frozen ≠ burned.** Frozen miners could theoretically unlock. Don't count them as burned.
 
-See also: [vesting analysis](../techniques/vesting-analysis.md), [staking analysis](../techniques/staking-analysis.md), [ADDRESS_CLASSIFICATION CTE](../dune/query-patterns.md), [Dune dashboards](../dune/dashboards.md).
+See also: [vesting analysis](../techniques/vesting-analysis.md), [staking analysis](../techniques/staking-analysis.md), [ADDRESS_CLASSIFICATION CTE](../dune/patterns/address-classification.md), [Dune dashboards](../dune/dashboards.md).

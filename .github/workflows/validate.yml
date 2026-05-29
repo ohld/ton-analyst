@@ -25,7 +25,10 @@ jobs:
           files=(
             "skills/ton-analyst/SKILL.md"
             "skills/ton-analyst/VERSION"
+            "skills/ton-analyst/bin/ton-analyst-bootstrap"
             "skills/ton-analyst/bin/ton-analyst-update-check"
+            "skills/ton-analyst/bin/ton-analyst-upgrade"
+            "scripts/validate-skill.py"
             "README.md"
             "LICENSE"
             "CHANGELOG.md"
@@ -42,6 +45,12 @@ jobs:
         run: |
           refs=(
             "skills/ton-analyst/reference/dune/query-patterns.md"
+            "skills/ton-analyst/reference/dune/patterns/gotchas.md"
+            "skills/ton-analyst/reference/dune/patterns/labels-real-users.md"
+            "skills/ton-analyst/reference/dune/patterns/address-classification.md"
+            "skills/ton-analyst/reference/dune/patterns/nft-fragment.md"
+            "skills/ton-analyst/reference/dune/patterns/sql-conventions.md"
+            "skills/ton-analyst/reference/dune/patterns/comment-analysis.md"
             "skills/ton-analyst/reference/dune/api.md"
             "skills/ton-analyst/reference/dune/dashboards.md"
             "skills/ton-analyst/reference/dune/schemas/README.md"
@@ -50,9 +59,15 @@ jobs:
             "skills/ton-analyst/reference/dune/examples/README.md"
             "skills/ton-analyst/reference/ton/blockchain.md"
             "skills/ton-analyst/reference/ton/labels.md"
+            "skills/ton-analyst/reference/ton/key-addresses.md"
+            "skills/ton-analyst/reference/ton/fragment.md"
+            "skills/ton-analyst/reference/ton/address-investigation.md"
+            "skills/ton-analyst/reference/ton/wallet-investigation.md"
+            "skills/ton-analyst/reference/ton/label-submission.md"
             "skills/ton-analyst/reference/ton/api.md"
             "skills/ton-analyst/reference/techniques/cex-flows.md"
             "skills/ton-analyst/reference/techniques/flow-tracing.md"
+            "skills/ton-analyst/reference/report-format.md"
             "skills/ton-analyst/reference/update-flow.md"
           )
           for f in "${refs[@]}"; do
@@ -129,12 +144,95 @@ jobs:
             echo "ERROR: unexpected update output: $out"
             exit 1
           fi
+          json_out=$(TON_ANALYST_STATE_DIR="$tmp/state" TON_ANALYST_REMOTE_VERSION_URL="file://$tmp/remote-version" skills/ton-analyst/bin/ton-analyst-update-check --force --json)
+          JSON_OUT="$json_out" python3 -c 'import json, os; payload = json.loads(os.environ["JSON_OUT"]); assert payload["status"] == "update_available"; assert payload["update_available"] is True; assert payload["remote_version"] == "999.999.999"'
           replay=$(TON_ANALYST_STATE_DIR="$tmp/state" TON_ANALYST_REMOTE_VERSION_URL="file://$tmp/remote-version" skills/ton-analyst/bin/ton-analyst-update-check)
           if [ "$replay" != "UPDATE_AVAILABLE $current_ver $remote_ver" ]; then
             echo "ERROR: unexpected cached update output: $replay"
             exit 1
           fi
           echo "OK: update checker"
+
+      - name: Check bootstrap auto-update
+        run: |
+          tmp="$(mktemp -d)"
+          git config --global user.name "skill-ci"
+          git config --global user.email "skill-ci@example.com"
+
+          git init --bare "$tmp/remote.git"
+          git clone "$tmp/remote.git" "$tmp/seed"
+          git -C "$tmp/seed" checkout -b main
+          mkdir -p "$tmp/seed/skills/ton-analyst/bin"
+          cp skills/ton-analyst/bin/ton-analyst-bootstrap "$tmp/seed/skills/ton-analyst/bin/"
+          cp skills/ton-analyst/bin/ton-analyst-update-check "$tmp/seed/skills/ton-analyst/bin/"
+          cp skills/ton-analyst/bin/ton-analyst-upgrade "$tmp/seed/skills/ton-analyst/bin/"
+          printf '1.0.0\n' > "$tmp/seed/skills/ton-analyst/VERSION"
+          touch "$tmp/seed/skills/ton-analyst/SKILL.md"
+          git -C "$tmp/seed" add .
+          git -C "$tmp/seed" commit -m "initial"
+          git -C "$tmp/seed" push origin main
+          git --git-dir="$tmp/remote.git" symbolic-ref HEAD refs/heads/main
+
+          git clone "$tmp/remote.git" "$tmp/install"
+          git -C "$tmp/install" checkout main
+          git -C "$tmp/install" remote set-url origin https://github.com/ohld/ton-analyst.git
+          git -C "$tmp/install" config url."file://$tmp/remote.git".insteadOf https://github.com/ohld/ton-analyst.git
+
+          printf '1.0.1\n' > "$tmp/seed/skills/ton-analyst/VERSION"
+          git -C "$tmp/seed" add skills/ton-analyst/VERSION
+          git -C "$tmp/seed" commit -m "bump"
+          git -C "$tmp/seed" push origin main
+          printf '1.0.1\n' > "$tmp/remote-version"
+
+          out=$(TON_ANALYST_SKILL_DIR="$tmp/install/skills/ton-analyst" TON_ANALYST_STATE_DIR="$tmp/state" TON_ANALYST_REMOTE_VERSION_URL="file://$tmp/remote-version" "$tmp/install/skills/ton-analyst/bin/ton-analyst-bootstrap" --force)
+          case "$out" in
+            UPDATED\ 1.0.0\ 1.0.1\ *) ;;
+            *)
+              echo "ERROR: expected auto-update, got: $out"
+              exit 1
+              ;;
+          esac
+          installed_ver="$(tr -d '[:space:]' < "$tmp/install/skills/ton-analyst/VERSION")"
+          if [ "$installed_ver" != "1.0.1" ]; then
+            echo "ERROR: expected installed VERSION 1.0.1, got: $installed_ver"
+            exit 1
+          fi
+
+          printf 'local edit\n' >> "$tmp/install/skills/ton-analyst/SKILL.md"
+          printf '1.0.2\n' > "$tmp/seed/skills/ton-analyst/VERSION"
+          git -C "$tmp/seed" add skills/ton-analyst/VERSION
+          git -C "$tmp/seed" commit -m "bump again"
+          git -C "$tmp/seed" push origin main
+          printf '1.0.2\n' > "$tmp/remote-version"
+          out=$(TON_ANALYST_SKILL_DIR="$tmp/install/skills/ton-analyst" TON_ANALYST_STATE_DIR="$tmp/state" TON_ANALYST_REMOTE_VERSION_URL="file://$tmp/remote-version" "$tmp/install/skills/ton-analyst/bin/ton-analyst-bootstrap" --force)
+          case "$out" in
+            *AUTO_UPDATE_SKIPPED\ dirty_worktree*) ;;
+            *)
+              echo "ERROR: expected dirty worktree skip, got: $out"
+              exit 1
+              ;;
+          esac
+
+          git clone --bare "$tmp/remote.git" "$tmp/worktree-host.git"
+          git --git-dir="$tmp/worktree-host.git" config remote.origin.url https://github.com/ohld/ton-analyst.git
+          git --git-dir="$tmp/worktree-host.git" config url."file://$tmp/remote.git".insteadOf https://github.com/ohld/ton-analyst.git
+          git --git-dir="$tmp/worktree-host.git" worktree add "$tmp/worktree-install" main
+          test -f "$tmp/worktree-install/.git"
+
+          printf '1.0.3\n' > "$tmp/seed/skills/ton-analyst/VERSION"
+          git -C "$tmp/seed" add skills/ton-analyst/VERSION
+          git -C "$tmp/seed" commit -m "bump worktree"
+          git -C "$tmp/seed" push origin main
+          printf '1.0.3\n' > "$tmp/remote-version"
+          out=$(TON_ANALYST_SKILL_DIR="$tmp/worktree-install/skills/ton-analyst" TON_ANALYST_STATE_DIR="$tmp/state-worktree" TON_ANALYST_REMOTE_VERSION_URL="file://$tmp/remote-version" "$tmp/worktree-install/skills/ton-analyst/bin/ton-analyst-bootstrap" --force)
+          case "$out" in
+            UPDATED\ 1.0.2\ 1.0.3\ *) ;;
+            *)
+              echo "ERROR: expected worktree auto-update, got: $out"
+              exit 1
+              ;;
+          esac
+          echo "OK: bootstrap auto-update"
 
       - name: Check setup script is executable
         run: |
@@ -143,11 +241,16 @@ jobs:
             exit 1
           fi
           echo "OK: setup is executable"
-          if [ ! -x "skills/ton-analyst/bin/ton-analyst-update-check" ]; then
-            echo "ERROR: update checker is not executable"
-            exit 1
-          fi
-          echo "OK: update checker is executable"
+          for f in skills/ton-analyst/bin/ton-analyst-bootstrap skills/ton-analyst/bin/ton-analyst-update-check skills/ton-analyst/bin/ton-analyst-upgrade; do
+            if [ ! -x "$f" ]; then
+              echo "ERROR: $f is not executable"
+              exit 1
+            fi
+            echo "OK: $f is executable"
+          done
+
+      - name: Validate skill structure
+        run: python3 scripts/validate-skill.py
 
       - name: Run CLI tests
         working-directory: skills/ton-analyst

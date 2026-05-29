@@ -54,7 +54,11 @@ For a local Claude-style personal skill install, run:
 
 ## Updates
 
-ton-analyst uses explicit versions. When the skill is invoked, it checks the published `VERSION` file and tells you if a newer release is available. Full flow: [`skills/ton-analyst/reference/update-flow.md`](skills/ton-analyst/reference/update-flow.md).
+ton-analyst uses explicit versions. When the skill is invoked, it checks the
+published `VERSION` file before doing analysis. Clean git-backed Codex/local
+installs on `main` auto-update with a fast-forward pull; marketplace installs,
+forks, branches, and dirty worktrees get a skip notice and keep working. Full
+flow: [`skills/ton-analyst/reference/update-flow.md`](skills/ton-analyst/reference/update-flow.md).
 
 To update manually in Claude Code:
 
@@ -66,8 +70,11 @@ To update manually in Claude Code:
 
 Claude Code can also auto-update marketplaces at startup when auto-update is enabled for the marketplace in `/plugin` → Marketplaces.
 
-For Codex/local git installs, pull the repo (`git -C /path/to/ton-analyst pull --ff-only`) and relaunch the agent.
-If the `ton` CLI wrapper is installed, rerun `./skills/ton-analyst/setup` after pulling.
+For Codex/local git installs, manual update is still:
+
+```
+git -C /path/to/ton-analyst pull --ff-only
+```
 
 ## Quick start
 
@@ -106,7 +113,9 @@ skills/ton-analyst/
 ├── VERSION                     # Runtime version used by the update checker
 ├── bin/
 │   ├── ton                     # TONAPI CLI wrapper
+│   ├── ton-analyst-bootstrap   # update-before-use entrypoint
 │   ├── ton-analyst-update-check
+│   ├── ton-analyst-upgrade     # conservative git fast-forward updater
 │   └── TODO.md                 # deferred subcommand ideas
 ├── setup                       # venv + wrapper installer
 ├── pyproject.toml              # CLI dependencies and pytest config
@@ -115,10 +124,11 @@ skills/ton-analyst/
 └── reference/
     ├── index.md               # Route tasks to the smallest useful reference
     ├── cli.md                  # `ton` CLI reference
+    ├── report-format.md        # mandatory report + query-log rules
     ├── update-flow.md          # Versioning and local/marketplace update flow
     ├── local-learnings.md      # Repeated mistakes before promotion to refs
-    ├── dune/                   # MCP/API workflow, asset constants, schemas, examples
-    ├── ton/                    # TON model, TONAPI, labels, address investigation
+    ├── dune/                   # MCP/API workflow, asset constants, schemas, examples, patterns
+    ├── ton/                    # TON model, TONAPI, labels, Fragment, wallet investigation
     └── techniques/             # CEX flows, staking, vesting, MEV, MAU, fees
 ```
 
@@ -136,16 +146,17 @@ skills/ton-analyst/
 1. Clone the repo
 2. Install locally: `./setup --host codex`, `./setup --host agents`, or `./setup --host claude`
 3. Edit files in `skills/ton-analyst/`
-4. Run tests: `cd skills/ton-analyst && uv run pytest`
-5. Submit a PR with your changes
+4. Run validation: `python3 scripts/validate-skill.py`
+5. Run tests: `cd skills/ton-analyst && uv run pytest`
+6. Submit a PR with your changes
 
 Architecture backlog: [`docs/professionalization-plan.md`](docs/professionalization-plan.md).
 
 ### What to contribute
 
 - New SQL examples — add `.sql` files in `reference/dune/examples/`
-- New table schemas or gotchas — edit `reference/dune/schemas/` or `reference/dune/query-patterns.md`
-- New labels or address discoveries — edit `reference/ton/labels.md`
+- New table schemas or gotchas — edit `reference/dune/schemas/` or the narrow `reference/dune/patterns/` page
+- New labels or address discoveries — edit the narrow `reference/ton/` page
 - Bug fixes in existing SQL — edit the relevant file
 
 ## Resources

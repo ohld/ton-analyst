@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Upgrade a git-backed ton-analyst install to origin/main.
+#
+# This script is intentionally conservative. It mutates only clean git installs
+# on the main branch. Marketplace/plugin and copied vendored installs are left
+# to their host-native update flows.
+set -euo pipefail
+
+SKILL_DIR="${TON_ANALYST_SKILL_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+OLD_VERSION=""
+NEW_VERSION=""
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --old)
+      OLD_VERSION="${2:-}"
+      shift 2
+      ;;
+    --new)
+      NEW_VERSION="${2:-}"
+      shift 2
+      ;;
+    --help|-h)
+      echo "Usage: ton-analyst-upgrade [--old VERSION] [--new VERSION]"
+      exit 0
+      ;;
+    *)
+      echo "AUTO_UPDATE_SKIPPED unknown_arg=$1"
+      exit 0
+      ;;
+  esac
+done
+
+read_version() {
+  tr -d '[:space:]' < "$1" 2>/dev/null || true
+}
+
+repo_root="$(git -C "$SKILL_DIR" rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$repo_root" ] || [ "$(git -C "$SKILL_DIR" rev-parse --is-inside-work-tree 2>/dev/null || true)" != "true" ]; then
+  echo "AUTO_UPDATE_SKIPPED install_type=non_git"
+  exit 0
+fi
+
+repo_slug="$(git -C "$repo_root" config --get remote.origin.url 2>/dev/null || true)"
+case "$repo_slug" in
+  *github.com[:/]ohld/ton-analyst.git|*github.com[:/]ohld/ton-analyst)
+    ;;
+  *)
+    echo "AUTO_UPDATE_SKIPPED remote_not_ton_analyst"
+    exit 0
+    ;;
+esac
+
+branch="$(git -C "$repo_root" branch --show-current 2>/dev/null || true)"
+if [ "$branch" != "main" ]; then
+  echo "AUTO_UPDATE_SKIPPED branch=${branch:-detached}"
+  exit 0
+fi
+
+if [ -n "$(git -C "$repo_root" status --porcelain 2>/dev/null)" ]; then
+  echo "AUTO_UPDATE_SKIPPED dirty_worktree"
+  exit 0
+fi
+
+old="${OLD_VERSION:-$(read_version "$SKILL_DIR/VERSION")}"
+
+if ! git -C "$repo_root" fetch origin main:refs/remotes/origin/main --quiet; then
+  echo "AUTO_UPDATE_SKIPPED fetch_failed"
+  exit 0
+fi
+
+remote_tree_version="$(git -C "$repo_root" show origin/main:skills/ton-analyst/VERSION 2>/dev/null | tr -d '[:space:]' || true)"
+if [ -n "$NEW_VERSION" ] && [ "$remote_tree_version" != "$NEW_VERSION" ]; then
+  echo "AUTO_UPDATE_SKIPPED version_mismatch expected=$NEW_VERSION actual=${remote_tree_version:-unknown}"
+  exit 0
+fi
+
+if ! git -C "$repo_root" merge-base --is-ancestor HEAD origin/main; then
+  echo "AUTO_UPDATE_SKIPPED non_fast_forward"
+  exit 0
+fi
+
+if ! git -C "$repo_root" merge --ff-only origin/main --quiet; then
+  echo "AUTO_UPDATE_SKIPPED merge_failed"
+  exit 0
+fi
+
+new="$(read_version "$SKILL_DIR/VERSION")"
+if [ -n "$NEW_VERSION" ] && [ "$new" != "$NEW_VERSION" ]; then
+  echo "AUTO_UPDATE_SKIPPED post_merge_version_mismatch expected=$NEW_VERSION actual=${new:-unknown}"
+  exit 0
+fi
+
+mkdir -p "${TON_ANALYST_STATE_DIR:-$HOME/.ton-analyst}"
+rm -f "${TON_ANALYST_STATE_DIR:-$HOME/.ton-analyst}/last-update-check"
+printf '%s %s %s\n' "$old" "$new" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "${TON_ANALYST_STATE_DIR:-$HOME/.ton-analyst}/just-updated"
+
+echo "UPDATED $old $new $SKILL_DIR"

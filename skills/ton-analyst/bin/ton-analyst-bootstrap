@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Run before the skill body does work: check the public version and auto-update
+# clean git-backed installs when possible.
+set -euo pipefail
+
+SKILL_DIR="${TON_ANALYST_SKILL_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+CHECK="$SKILL_DIR/bin/ton-analyst-update-check"
+UPGRADE="$SKILL_DIR/bin/ton-analyst-upgrade"
+
+FORCE=0
+for arg in "$@"; do
+  case "$arg" in
+    --force) FORCE=1 ;;
+    --help|-h)
+      echo "Usage: ton-analyst-bootstrap [--force]"
+      exit 0
+      ;;
+  esac
+done
+
+if [ ! -x "$CHECK" ]; then
+  exit 0
+fi
+
+check_args=()
+if [ "$FORCE" = "1" ]; then
+  check_args+=(--force)
+fi
+
+out="$("$CHECK" "${check_args[@]}" 2>/dev/null || true)"
+case "$out" in
+  UPDATE_AVAILABLE\ *)
+    ;;
+  *)
+    [ -n "$out" ] && printf '%s\n' "$out"
+    exit 0
+    ;;
+esac
+
+old="$(printf '%s\n' "$out" | awk '{print $2}')"
+new="$(printf '%s\n' "$out" | awk '{print $3}')"
+
+case "${TON_ANALYST_AUTO_UPDATE:-1}" in
+  0|false|FALSE|off|OFF)
+    printf 'UPDATE_AVAILABLE %s %s AUTO_UPDATE_DISABLED\n' "$old" "$new"
+    exit 0
+    ;;
+esac
+
+if [ ! -x "$UPGRADE" ]; then
+  printf 'UPDATE_AVAILABLE %s %s AUTO_UPDATE_SKIPPED missing_upgrade_script\n' "$old" "$new"
+  exit 0
+fi
+
+upgrade_out="$("$UPGRADE" --old "$old" --new "$new" 2>/dev/null || true)"
+case "$upgrade_out" in
+  UPDATED\ *)
+    printf '%s\n' "$upgrade_out"
+    ;;
+  AUTO_UPDATE_SKIPPED\ *)
+    printf 'UPDATE_AVAILABLE %s %s %s\n' "$old" "$new" "$upgrade_out"
+    ;;
+  *)
+    printf 'UPDATE_AVAILABLE %s %s AUTO_UPDATE_FAILED\n' "$old" "$new"
+    ;;
+esac
