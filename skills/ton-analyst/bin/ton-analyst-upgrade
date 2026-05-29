@@ -11,6 +11,11 @@ ARCHIVE_URL="${TON_ANALYST_ARCHIVE_URL:-https://github.com/ohld/ton-analyst/arch
 OLD_VERSION=""
 NEW_VERSION=""
 
+skip() {
+  echo "AUTO_UPDATE_SKIPPED $1"
+  exit 0
+}
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --old)
@@ -26,14 +31,21 @@ while [ "$#" -gt 0 ]; do
       exit 0
       ;;
     *)
-      echo "AUTO_UPDATE_SKIPPED unknown_arg=$1"
-      exit 0
+      skip "unknown_arg=$1"
       ;;
   esac
 done
 
 read_version() {
   tr -d '[:space:]' < "$1" 2>/dev/null || true
+}
+
+is_ton_skill_dir() {
+  grep -Eq '^name: ton-analyst$' "$1/SKILL.md" 2>/dev/null
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || skip "missing_$1"
 }
 
 record_update() {
@@ -46,41 +58,31 @@ record_update() {
 archive_upgrade() {
   local old="$1" tmp skill_md src_skill src_version backup timestamp new
 
-  command -v curl >/dev/null 2>&1 || { echo "AUTO_UPDATE_SKIPPED missing_curl"; exit 0; }
-  command -v tar >/dev/null 2>&1 || { echo "AUTO_UPDATE_SKIPPED missing_tar"; exit 0; }
-  command -v python3 >/dev/null 2>&1 || { echo "AUTO_UPDATE_SKIPPED missing_python3"; exit 0; }
+  require_cmd curl
+  require_cmd tar
+  require_cmd python3
 
-  if ! grep -Eq '^name: ton-analyst$' "$SKILL_DIR/SKILL.md" 2>/dev/null; then
-    echo "AUTO_UPDATE_SKIPPED invalid_skill_dir"
-    exit 0
-  fi
+  is_ton_skill_dir "$SKILL_DIR" || skip "invalid_skill_dir"
 
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' EXIT
   if ! curl -fsSL --max-time 30 "$ARCHIVE_URL" -o "$tmp/source.tar.gz"; then
-    echo "AUTO_UPDATE_SKIPPED archive_download_failed"
-    exit 0
+    skip "archive_download_failed"
   fi
   if ! tar -xzf "$tmp/source.tar.gz" -C "$tmp"; then
-    echo "AUTO_UPDATE_SKIPPED archive_extract_failed"
-    exit 0
+    skip "archive_extract_failed"
   fi
 
   skill_md="$(find "$tmp" -path '*/skills/ton-analyst/SKILL.md' -print -quit)"
   src_skill="${skill_md%/SKILL.md}"
   if [ -z "$src_skill" ] || [ ! -f "$src_skill/VERSION" ]; then
-    echo "AUTO_UPDATE_SKIPPED archive_missing_skill"
-    exit 0
+    skip "archive_missing_skill"
   fi
-  if ! grep -Eq '^name: ton-analyst$' "$src_skill/SKILL.md" 2>/dev/null; then
-    echo "AUTO_UPDATE_SKIPPED archive_invalid_skill"
-    exit 0
-  fi
+  is_ton_skill_dir "$src_skill" || skip "archive_invalid_skill"
 
   src_version="$(read_version "$src_skill/VERSION")"
   if [ -n "$NEW_VERSION" ] && [ "$src_version" != "$NEW_VERSION" ]; then
-    echo "AUTO_UPDATE_SKIPPED version_mismatch expected=$NEW_VERSION actual=${src_version:-unknown}"
-    exit 0
+    skip "version_mismatch expected=$NEW_VERSION actual=${src_version:-unknown}"
   fi
 
   timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -128,14 +130,12 @@ for child in src.iterdir():
         shutil.copy2(child, target, follow_symlinks=False)
 PY
   then
-    echo "AUTO_UPDATE_SKIPPED archive_apply_failed"
-    exit 0
+    skip "archive_apply_failed"
   fi
 
   new="$(read_version "$SKILL_DIR/VERSION")"
   if [ -n "$NEW_VERSION" ] && [ "$new" != "$NEW_VERSION" ]; then
-    echo "AUTO_UPDATE_SKIPPED post_apply_version_mismatch expected=$NEW_VERSION actual=${new:-unknown}"
-    exit 0
+    skip "post_apply_version_mismatch expected=$NEW_VERSION actual=${new:-unknown}"
   fi
 
   record_update "$old" "$new"
@@ -153,49 +153,41 @@ case "$repo_slug" in
   *github.com[:/]ohld/ton-analyst.git|*github.com[:/]ohld/ton-analyst)
     ;;
   *)
-    echo "AUTO_UPDATE_SKIPPED remote_not_ton_analyst"
-    exit 0
+    skip "remote_not_ton_analyst"
     ;;
 esac
 
 branch="$(git -C "$repo_root" branch --show-current 2>/dev/null || true)"
 if [ "$branch" != "main" ]; then
-  echo "AUTO_UPDATE_SKIPPED branch=${branch:-detached}"
-  exit 0
+  skip "branch=${branch:-detached}"
 fi
 
 if [ -n "$(git -C "$repo_root" status --porcelain 2>/dev/null)" ]; then
-  echo "AUTO_UPDATE_SKIPPED dirty_worktree"
-  exit 0
+  skip "dirty_worktree"
 fi
 
 old="${OLD_VERSION:-$(read_version "$SKILL_DIR/VERSION")}"
 
 if ! git -C "$repo_root" fetch origin main:refs/remotes/origin/main --quiet; then
-  echo "AUTO_UPDATE_SKIPPED fetch_failed"
-  exit 0
+  skip "fetch_failed"
 fi
 
 remote_tree_version="$(git -C "$repo_root" show origin/main:skills/ton-analyst/VERSION 2>/dev/null | tr -d '[:space:]' || true)"
 if [ -n "$NEW_VERSION" ] && [ "$remote_tree_version" != "$NEW_VERSION" ]; then
-  echo "AUTO_UPDATE_SKIPPED version_mismatch expected=$NEW_VERSION actual=${remote_tree_version:-unknown}"
-  exit 0
+  skip "version_mismatch expected=$NEW_VERSION actual=${remote_tree_version:-unknown}"
 fi
 
 if ! git -C "$repo_root" merge-base --is-ancestor HEAD origin/main; then
-  echo "AUTO_UPDATE_SKIPPED non_fast_forward"
-  exit 0
+  skip "non_fast_forward"
 fi
 
 if ! git -C "$repo_root" merge --ff-only origin/main --quiet; then
-  echo "AUTO_UPDATE_SKIPPED merge_failed"
-  exit 0
+  skip "merge_failed"
 fi
 
 new="$(read_version "$SKILL_DIR/VERSION")"
 if [ -n "$NEW_VERSION" ] && [ "$new" != "$NEW_VERSION" ]; then
-  echo "AUTO_UPDATE_SKIPPED post_merge_version_mismatch expected=$NEW_VERSION actual=${new:-unknown}"
-  exit 0
+  skip "post_merge_version_mismatch expected=$NEW_VERSION actual=${new:-unknown}"
 fi
 
 record_update "$old" "$new"

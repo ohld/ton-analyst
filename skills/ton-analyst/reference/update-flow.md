@@ -142,9 +142,3 @@ hosts that cache skill files until restart. New local installs can use
 3. For intentional release PRs, bump `.claude-plugin/marketplace.json`, `SKILL.md`, and `VERSION` together.
 4. Add `CHANGELOG.md` notes.
 5. Run validation and open/merge the PR.
-
-## GBrain / GStack Comparison
-
-gbrain separates update detection from upgrade execution and uses explicit
-releases. ton-analyst keeps the same shape with public `VERSION`, git/archive
-updaters, and a post-merge patch bump so reference updates become discoverable.

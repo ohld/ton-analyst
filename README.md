@@ -13,6 +13,8 @@ reference files.
 
 ## Install
 
+Install once, then restart the agent so it reloads available skills.
+
 ### Claude Code
 
 Install from the Claude Code marketplace:
@@ -27,7 +29,7 @@ This adds the repo as a marketplace source and installs the skill.
 ### Codex
 
 Codex loads skills from `${CODEX_HOME:-~/.codex}/skills`. Clone the repo once,
-then symlink the skill into Codex:
+then install the skill:
 
 ```
 git clone https://github.com/ohld/ton-analyst.git
@@ -54,12 +56,14 @@ For a local Claude-style personal skill install, run:
 
 ## Updates
 
-ton-analyst uses explicit versions. When the skill is invoked, it checks the
-published `VERSION` file before doing analysis. Auto-update is enabled by
-default: clean git-backed installs fast-forward from `origin/main`, and plain
-copied/plugin installs download the GitHub archive and replace the local skill
-files with a backup. Set `TON_ANALYST_AUTO_UPDATE=0` to pin a local copy. Full
-flow: [`skills/ton-analyst/reference/update-flow.md`](skills/ton-analyst/reference/update-flow.md).
+Auto-update is enabled by default. On every skill invocation, ton-analyst checks
+the published `VERSION` file before analysis starts.
+
+- Git-backed installs fast-forward from `origin/main` when the checkout is clean.
+- Copied/plugin installs download the GitHub archive and replace local skill files with a backup.
+- To pin a local copy temporarily, set `TON_ANALYST_AUTO_UPDATE=0`.
+
+Full flow: [`skills/ton-analyst/reference/update-flow.md`](skills/ton-analyst/reference/update-flow.md).
 
 To update manually in Claude Code:
 
