@@ -91,7 +91,7 @@ This skill works best with the Dune MCP server connected. Setup: `reference/dune
 | `ton.dex_trades` | DEX swaps |
 | `ton.latest_balances` | Current balance snapshot |
 | `dune.ton_foundation.dataset_labels` | Named entities (~3,150) |
-| `dune.ton_foundation.result_custodial_wallets` | CEX deposit wallets (~9.6M) |
+| `dune.ton_foundation.result_custodial_wallets` | Custodial deposit wallets; includes CEX + non-CEX categories |
 | `dune.ton_foundation.result_external_balances_history` | DeFi positions |
 | `dune.ton_foundation.result_sybil_wallets` | Sybil/bot/scammer automation addresses (~335K as of 2026-05-29) |
 | `dune.ton_foundation.result_nominators_cashflow` | Staking flows |
@@ -108,6 +108,8 @@ Full schemas: reference/dune/schemas/
 - User wallet addresses: `ton_address_raw_to_user_friendly(addr, false)` — non-bounceable UQ prefix
 - Embed transaction hyperlinks inside datetime columns for interactive dashboards
 - **Dune runs Trino (Presto) SQL — not Snowflake/BigQuery/Spark.** e.g. `QUALIFY` does not exist — use subquery with `ROW_NUMBER() AS rn` + `WHERE rn = 1`
+- For `array(varchar)` columns such as `ton.accounts.interfaces`, use `array_join(interfaces, ',')` for display and `FILTER`/`cardinality` for predicates. Do not `CAST(array AS varchar)`.
+- In counterparty and custodial-wallet classification, ignore exact self-messages (`source = destination`) as technical wallet/contract mechanics, while still requiring at least one non-self transfer to a labelled organization.
 
 ## Report Format
 

@@ -31,6 +31,28 @@ CTEs, classification logic, and conventions for TON Dune queries.
 25. **User wallet addresses: use non-bounceable (UQ).** `ton_address_raw_to_user_friendly(addr, false)` for user wallets — UQ prefix is the standard for displaying wallet addresses of real users. Bounceable (EQ) is for smart contracts.
 26. **Query updates: prefer MCP `updateDuneQuery`, fallback to CLI.** `updateDuneQuery` (MCP) handles SQL/name/tags cleanly. If MCP is unavailable, use `dune query update <id> --sql "..." --name "..." --tags "x,y"`. Never use REST API PATCH — it's broken for name/SQL updates.
 27. **Priority mining uses `msg_hash`, not gas price.** TON has no Ethereum-style MAB. Detect hash mining by comparing root outbound `ton.messages.msg_hash` distributions against random expectation (`high_bit_share` near `0.5`). A low share plus sufficient DEX activity is a priority-mining signal; see [priority-mining.md](../techniques/priority-mining.md).
+28. **Do not cast arrays to varchar.** DuneSQL/Trino rejects `CAST(array(varchar) AS varchar)`. For `ton.accounts.interfaces`, use `array_join(interfaces, ',')` for display and `cardinality(FILTER(interfaces, i -> regexp_like(i, '^wallet_'))) > 0` for predicates.
+29. **Ignore exact self-messages for counterparty classification.** TON wallet/contract implementations can emit `source = destination` messages with real value. They are technical mechanics, not external counterparties. Exclude only exact self-messages with `source IS NULL OR destination IS NULL OR source <> destination`; do not ignore same-owner or multi-hop transfers by heuristic.
+30. **Saved query execution does not refresh materialized views.** For `dune.<team>.result_*` tables, updating/executing the source query proves SQL but the table stays stale until the materialized-view refresh runs. Use the Dune Materialized Views refresh endpoint when you need the table updated immediately.
+31. **Dune execution parameters do not support `date`.** The API/MCP execution path supports `datetime`, `enum`, `number`, and `text`. For date-only parameters, use `text` and cast in SQL, e.g. `DATE '{{cutoff_date}}'`.
+
+## Counterparty Filters
+
+When classifying wallets by who they send to, remove self-messages before joining
+destinations to labels. Keep the filter narrow and still require at least one
+non-self outgoing transfer to a labelled organization.
+
+```sql
+, TRANSFERS_FOR_CLASSIFICATION AS (
+    SELECT *
+    FROM TRANSFERS
+    WHERE source IS NULL OR destination IS NULL OR source <> destination
+)
+```
+
+For custodial-wallet detectors, apply this before `SOURCE_STATS` /
+`DESTINATION_STATS`. A wallet that only sends to itself after this filter should
+not be classified as custodial.
 
 ## ALL_LABELS + REAL_USERS
 

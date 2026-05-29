@@ -50,10 +50,10 @@ Always verify with roundtrip test: `raw → friendly → raw` must match origina
 
 ## CEX Infrastructure
 
-CEX = Exchange main wallets + Custodial deposit wallets.
+CEX = Exchange main wallets + custodial deposit wallets filtered to `category = 'CEX'`.
 
 1. **Main wallets** — `dataset_labels` where `category = 'CEX'` (~643 addresses, ~127M TON)
-2. **Deposit wallets** — `result_custodial_wallets` (~9.6M addresses, ~35M TON)
+2. **Deposit wallets** — `result_custodial_wallets WHERE category = 'CEX'` (~9.6M addresses, ~35M TON)
 
 Always combine both into one "CEX" group for analytics.
 

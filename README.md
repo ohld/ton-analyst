@@ -127,7 +127,7 @@ skills/ton-analyst/
 - `ton.accounts`, `ton.messages`, `ton.balances_history`, `ton.jetton_events`
 - `ton.prices_daily`, `ton.dex_trades`, `ton.latest_balances`
 - `dune.ton_foundation.dataset_labels` — named entities (~3,150)
-- `dune.ton_foundation.result_custodial_wallets` — CEX deposit wallets (~9.6M)
+- `dune.ton_foundation.result_custodial_wallets` — custodial deposit wallets; includes CEX and non-CEX categories
 - `dune.ton_foundation.result_external_balances_history` — DeFi positions
 - `dune.ton_foundation.result_sybil_wallets`, `result_nominators_cashflow`
 
