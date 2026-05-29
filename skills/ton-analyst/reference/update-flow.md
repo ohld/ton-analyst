@@ -1,9 +1,9 @@
 # Update Flow
 
-ton-analyst ships as both a Claude Code marketplace plugin and a portable
-git-backed skill directory for Codex/local agents. Every invocation runs a small
-bootstrap before analysis starts: check the public `VERSION`, auto-update when
-the install is safe to mutate, then continue the requested work.
+ton-analyst ships as both a Claude Code marketplace plugin and a portable skill
+directory for Codex/local agents. Every invocation runs a small bootstrap before
+analysis starts: check the public `VERSION`, update the local skill when a newer
+version exists, then continue the requested work.
 
 ## Version Sources
 
@@ -22,9 +22,9 @@ publishable without manual version edits in every PR.
 The workflow skips based on the GitHub Actions bot actor and actual `VERSION`
 file changes, not commit-message markers.
 
-First-run caveat: users on versions before 0.4.10 do not have auto-update.
-They need one normal marketplace/local git update to receive this bootstrap;
-after that, future releases are detected from inside the skill.
+First-run caveat: versions before 0.4.10 have no update check. Non-git users on
+0.4.10/0.4.11 need one host-native update to receive archive auto-update. After
+that, future releases are applied from inside the skill.
 
 ## Runtime Bootstrap
 
@@ -49,8 +49,9 @@ The checker prints `UPDATE_AVAILABLE <old> <new>` only when the remote version
 is greater than the local version. It is silent when up to date, offline,
 disabled, or cache-fresh. `--json` emits a stable object for tests and wrappers.
 
-When an update is available, the bootstrap calls `bin/ton-analyst-upgrade` unless
-`TON_ANALYST_AUTO_UPDATE=0|false|off`. Successful upgrades print:
+When an update is available, the bootstrap calls `bin/ton-analyst-upgrade`.
+Auto-update is enabled by default. Set `TON_ANALYST_AUTO_UPDATE=0|false|off`
+only to pin a local copy temporarily. Successful upgrades print:
 
 ```
 UPDATED <old> <new> <skill_dir>
@@ -69,9 +70,9 @@ State lives in `${TON_ANALYST_STATE_DIR:-~/.ton-analyst}`.
 - Disable auto-update but keep notification: `TON_ANALYST_AUTO_UPDATE=0`
 - Force re-check: `bin/ton-analyst-bootstrap --force`
 
-## Safe Auto-Update
+## Default Auto-Update
 
-Auto-update mutates only clean git-backed installs:
+Git-backed installs use a fast-forward pull when safe:
 
 - repo root must be a git checkout
 - `origin` must point to `github.com/ohld/ton-analyst`
@@ -79,9 +80,14 @@ Auto-update mutates only clean git-backed installs:
 - worktree must be clean
 - `HEAD` must be fast-forwardable to `origin/main`
 
-Marketplace/plugin installs, copied vendored installs, dirty worktrees, forks,
-feature branches, detached heads, and non-fast-forward cases are skipped. Skip
-markers look like:
+Plain copied/plugin installs download the GitHub archive for `main`, verify
+`VERSION`, back up the current skill directory under
+`${TON_ANALYST_STATE_DIR:-~/.ton-analyst}/backups/`, then replace files in place
+while preserving `.venv`.
+
+Dirty worktrees, forks, feature branches, detached heads, non-fast-forward git
+states, missing tools, and unwritable copied installs are skipped. Skip markers
+look like:
 
 ```
 UPDATE_AVAILABLE <old> <new> AUTO_UPDATE_SKIPPED dirty_worktree
@@ -124,9 +130,9 @@ Then relaunch Codex so it reloads the skill.
 git -C /path/to/ton-analyst pull --ff-only
 ```
 
-The bootstrap performs this automatically only for safe git-backed installs.
-Manual update remains useful for forks, branches, dirty worktrees, and hosts
-that cache skill files until restart. For new local installs, use
+Bootstrap handles safe git installs and copied/plugin installs automatically.
+Manual update remains useful for first install, forks, dirty worktrees, and
+hosts that cache skill files until restart. New local installs can use
 `./setup --host codex`, `./setup --host agents`, or `./setup --host claude`.
 
 ## Release Checklist
@@ -136,15 +142,3 @@ that cache skill files until restart. For new local installs, use
 3. For intentional release PRs, bump `.claude-plugin/marketplace.json`, `SKILL.md`, and `VERSION` together.
 4. Add `CHANGELOG.md` notes.
 5. Run validation and open/merge the PR.
-
-## GBrain / GStack Comparison
-
-gbrain separates update detection from upgrade execution: `check-update` reads
-GitHub releases and `upgrade` applies the appropriate installer path, then asks
-the user to rerun on major/minor drift. It does not auto-bump a minor version
-after every PR; releases are versioned explicitly.
-
-ton-analyst copies the useful shape but keeps it smaller: public `VERSION`
-instead of release metadata, git fast-forward for safe local installs, and a
-post-merge patch bump so merged reference updates become discoverable
-automatically.

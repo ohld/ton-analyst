@@ -167,7 +167,7 @@ jobs:
           cp skills/ton-analyst/bin/ton-analyst-update-check "$tmp/seed/skills/ton-analyst/bin/"
           cp skills/ton-analyst/bin/ton-analyst-upgrade "$tmp/seed/skills/ton-analyst/bin/"
           printf '1.0.0\n' > "$tmp/seed/skills/ton-analyst/VERSION"
-          touch "$tmp/seed/skills/ton-analyst/SKILL.md"
+          printf '%s\n' '---' 'name: ton-analyst' 'version: 1.0.0' '---' > "$tmp/seed/skills/ton-analyst/SKILL.md"
           git -C "$tmp/seed" add .
           git -C "$tmp/seed" commit -m "initial"
           git -C "$tmp/seed" push origin main
@@ -232,6 +232,47 @@ jobs:
               exit 1
               ;;
           esac
+
+          mkdir -p "$tmp/plain/skills/ton-analyst/bin" "$tmp/plain/skills/ton-analyst/.venv"
+          cp skills/ton-analyst/bin/ton-analyst-bootstrap "$tmp/plain/skills/ton-analyst/bin/"
+          cp skills/ton-analyst/bin/ton-analyst-update-check "$tmp/plain/skills/ton-analyst/bin/"
+          cp skills/ton-analyst/bin/ton-analyst-upgrade "$tmp/plain/skills/ton-analyst/bin/"
+          printf '1.0.3\n' > "$tmp/plain/skills/ton-analyst/VERSION"
+          printf '%s\n' '---' 'name: ton-analyst' 'version: 1.0.3' '---' > "$tmp/plain/skills/ton-analyst/SKILL.md"
+          printf 'stale\n' > "$tmp/plain/skills/ton-analyst/old-only.txt"
+          printf 'keep\n' > "$tmp/plain/skills/ton-analyst/.venv/keep.txt"
+
+          printf '1.0.4\n' > "$tmp/seed/skills/ton-analyst/VERSION"
+          printf '%s\n' '---' 'name: ton-analyst' 'version: 1.0.4' '---' > "$tmp/seed/skills/ton-analyst/SKILL.md"
+          git -C "$tmp/seed" add skills/ton-analyst/VERSION skills/ton-analyst/SKILL.md
+          git -C "$tmp/seed" commit -m "bump archive"
+          git -C "$tmp/seed" archive --format=tar.gz --prefix=ton-analyst-main/ -o "$tmp/archive.tar.gz" HEAD
+          printf '1.0.4\n' > "$tmp/remote-version"
+          out=$(TON_ANALYST_SKILL_DIR="$tmp/plain/skills/ton-analyst" TON_ANALYST_STATE_DIR="$tmp/state-archive" TON_ANALYST_REMOTE_VERSION_URL="file://$tmp/remote-version" TON_ANALYST_ARCHIVE_URL="file://$tmp/archive.tar.gz" "$tmp/plain/skills/ton-analyst/bin/ton-analyst-bootstrap" --force)
+          case "$out" in
+            UPDATED\ 1.0.3\ 1.0.4\ *) ;;
+            *)
+              echo "ERROR: expected archive auto-update, got: $out"
+              exit 1
+              ;;
+          esac
+          archive_ver="$(tr -d '[:space:]' < "$tmp/plain/skills/ton-analyst/VERSION")"
+          if [ "$archive_ver" != "1.0.4" ]; then
+            echo "ERROR: expected archive VERSION 1.0.4, got: $archive_ver"
+            exit 1
+          fi
+          if [ -e "$tmp/plain/skills/ton-analyst/old-only.txt" ]; then
+            echo "ERROR: archive update left stale file"
+            exit 1
+          fi
+          if [ ! -f "$tmp/plain/skills/ton-analyst/.venv/keep.txt" ]; then
+            echo "ERROR: archive update did not preserve .venv"
+            exit 1
+          fi
+          if ! find "$tmp/state-archive/backups" -mindepth 1 -maxdepth 1 -type d | grep -q .; then
+            echo "ERROR: archive update did not create backup"
+            exit 1
+          fi
           echo "OK: bootstrap auto-update"
 
       - name: Check setup script is executable

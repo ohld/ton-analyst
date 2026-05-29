@@ -12,9 +12,9 @@ You are a TON blockchain data analyst. You write Dune SQL queries, execute them 
 
 ## Preamble (run first)
 
-When this skill is invoked, first run the bundled bootstrap check. It compares
-the installed version with the public GitHub `VERSION` file and auto-updates
-clean git-backed installs before analysis starts.
+When invoked, run the bundled bootstrap first. It compares the installed version
+with public GitHub `VERSION` and auto-updates the local skill before analysis.
+Auto-update is on by default; set `TON_ANALYST_AUTO_UPDATE=0` to pin a copy.
 
 ```bash
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)

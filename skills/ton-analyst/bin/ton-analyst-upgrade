@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
-# Upgrade a git-backed ton-analyst install to origin/main.
+# Upgrade ton-analyst to the public main branch.
 #
-# This script is intentionally conservative. It mutates only clean git installs
-# on the main branch. Marketplace/plugin and copied vendored installs are left
-# to their host-native update flows.
+# Git-backed installs use a fast-forward pull. Plain copied/plugin installs use
+# the GitHub archive and keep a best-effort backup before replacing files.
 set -euo pipefail
 
 SKILL_DIR="${TON_ANALYST_SKILL_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+STATE_DIR="${TON_ANALYST_STATE_DIR:-$HOME/.ton-analyst}"
+ARCHIVE_URL="${TON_ANALYST_ARCHIVE_URL:-https://github.com/ohld/ton-analyst/archive/refs/heads/main.tar.gz}"
 OLD_VERSION=""
 NEW_VERSION=""
+
+skip() {
+  echo "AUTO_UPDATE_SKIPPED $1"
+  exit 0
+}
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -25,8 +31,7 @@ while [ "$#" -gt 0 ]; do
       exit 0
       ;;
     *)
-      echo "AUTO_UPDATE_SKIPPED unknown_arg=$1"
-      exit 0
+      skip "unknown_arg=$1"
       ;;
   esac
 done
@@ -35,10 +40,112 @@ read_version() {
   tr -d '[:space:]' < "$1" 2>/dev/null || true
 }
 
+is_ton_skill_dir() {
+  grep -Eq '^name: ton-analyst$' "$1/SKILL.md" 2>/dev/null
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || skip "missing_$1"
+}
+
+record_update() {
+  local old="$1" new="$2"
+  mkdir -p "$STATE_DIR"
+  rm -f "$STATE_DIR/last-update-check"
+  printf '%s %s %s\n' "$old" "$new" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATE_DIR/just-updated"
+}
+
+archive_upgrade() {
+  local old="$1" tmp skill_md src_skill src_version backup timestamp new
+
+  require_cmd curl
+  require_cmd tar
+  require_cmd python3
+
+  is_ton_skill_dir "$SKILL_DIR" || skip "invalid_skill_dir"
+
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+  if ! curl -fsSL --max-time 30 "$ARCHIVE_URL" -o "$tmp/source.tar.gz"; then
+    skip "archive_download_failed"
+  fi
+  if ! tar -xzf "$tmp/source.tar.gz" -C "$tmp"; then
+    skip "archive_extract_failed"
+  fi
+
+  skill_md="$(find "$tmp" -path '*/skills/ton-analyst/SKILL.md' -print -quit)"
+  src_skill="${skill_md%/SKILL.md}"
+  if [ -z "$src_skill" ] || [ ! -f "$src_skill/VERSION" ]; then
+    skip "archive_missing_skill"
+  fi
+  is_ton_skill_dir "$src_skill" || skip "archive_invalid_skill"
+
+  src_version="$(read_version "$src_skill/VERSION")"
+  if [ -n "$NEW_VERSION" ] && [ "$src_version" != "$NEW_VERSION" ]; then
+    skip "version_mismatch expected=$NEW_VERSION actual=${src_version:-unknown}"
+  fi
+
+  timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  backup="$STATE_DIR/backups/ton-analyst-${old:-unknown}-$timestamp"
+  if ! python3 - "$src_skill" "$SKILL_DIR" "$backup" <<'PY'
+import shutil
+import sys
+from pathlib import Path
+
+src = Path(sys.argv[1])
+dst = Path(sys.argv[2])
+backup = Path(sys.argv[3])
+preserve = {".venv"}
+ignore = shutil.ignore_patterns(".venv", "__pycache__", ".pytest_cache", "*.pyc")
+
+if not dst.exists() or not dst.is_dir():
+    raise SystemExit("destination is not a directory")
+
+backup.parent.mkdir(parents=True, exist_ok=True)
+shutil.copytree(dst, backup, symlinks=True, ignore=ignore)
+
+for child in list(dst.iterdir()):
+    if child.name in preserve:
+        continue
+    if not (src / child.name).exists():
+        if child.is_dir() and not child.is_symlink():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+
+for child in src.iterdir():
+    if child.name in preserve:
+        continue
+    target = dst / child.name
+    if target.exists() or target.is_symlink():
+        if target.is_dir() and not target.is_symlink():
+            shutil.rmtree(target)
+        else:
+            target.unlink()
+    if child.is_dir() and not child.is_symlink():
+        shutil.copytree(child, target, symlinks=True)
+    elif child.is_symlink():
+        target.symlink_to(child.readlink())
+    else:
+        shutil.copy2(child, target, follow_symlinks=False)
+PY
+  then
+    skip "archive_apply_failed"
+  fi
+
+  new="$(read_version "$SKILL_DIR/VERSION")"
+  if [ -n "$NEW_VERSION" ] && [ "$new" != "$NEW_VERSION" ]; then
+    skip "post_apply_version_mismatch expected=$NEW_VERSION actual=${new:-unknown}"
+  fi
+
+  record_update "$old" "$new"
+  echo "UPDATED $old $new $SKILL_DIR"
+  exit 0
+}
+
 repo_root="$(git -C "$SKILL_DIR" rev-parse --show-toplevel 2>/dev/null || true)"
 if [ -z "$repo_root" ] || [ "$(git -C "$SKILL_DIR" rev-parse --is-inside-work-tree 2>/dev/null || true)" != "true" ]; then
-  echo "AUTO_UPDATE_SKIPPED install_type=non_git"
-  exit 0
+  archive_upgrade "${OLD_VERSION:-$(read_version "$SKILL_DIR/VERSION")}"
 fi
 
 repo_slug="$(git -C "$repo_root" config --get remote.origin.url 2>/dev/null || true)"
@@ -46,53 +153,43 @@ case "$repo_slug" in
   *github.com[:/]ohld/ton-analyst.git|*github.com[:/]ohld/ton-analyst)
     ;;
   *)
-    echo "AUTO_UPDATE_SKIPPED remote_not_ton_analyst"
-    exit 0
+    skip "remote_not_ton_analyst"
     ;;
 esac
 
 branch="$(git -C "$repo_root" branch --show-current 2>/dev/null || true)"
 if [ "$branch" != "main" ]; then
-  echo "AUTO_UPDATE_SKIPPED branch=${branch:-detached}"
-  exit 0
+  skip "branch=${branch:-detached}"
 fi
 
 if [ -n "$(git -C "$repo_root" status --porcelain 2>/dev/null)" ]; then
-  echo "AUTO_UPDATE_SKIPPED dirty_worktree"
-  exit 0
+  skip "dirty_worktree"
 fi
 
 old="${OLD_VERSION:-$(read_version "$SKILL_DIR/VERSION")}"
 
 if ! git -C "$repo_root" fetch origin main:refs/remotes/origin/main --quiet; then
-  echo "AUTO_UPDATE_SKIPPED fetch_failed"
-  exit 0
+  skip "fetch_failed"
 fi
 
 remote_tree_version="$(git -C "$repo_root" show origin/main:skills/ton-analyst/VERSION 2>/dev/null | tr -d '[:space:]' || true)"
 if [ -n "$NEW_VERSION" ] && [ "$remote_tree_version" != "$NEW_VERSION" ]; then
-  echo "AUTO_UPDATE_SKIPPED version_mismatch expected=$NEW_VERSION actual=${remote_tree_version:-unknown}"
-  exit 0
+  skip "version_mismatch expected=$NEW_VERSION actual=${remote_tree_version:-unknown}"
 fi
 
 if ! git -C "$repo_root" merge-base --is-ancestor HEAD origin/main; then
-  echo "AUTO_UPDATE_SKIPPED non_fast_forward"
-  exit 0
+  skip "non_fast_forward"
 fi
 
 if ! git -C "$repo_root" merge --ff-only origin/main --quiet; then
-  echo "AUTO_UPDATE_SKIPPED merge_failed"
-  exit 0
+  skip "merge_failed"
 fi
 
 new="$(read_version "$SKILL_DIR/VERSION")"
 if [ -n "$NEW_VERSION" ] && [ "$new" != "$NEW_VERSION" ]; then
-  echo "AUTO_UPDATE_SKIPPED post_merge_version_mismatch expected=$NEW_VERSION actual=${new:-unknown}"
-  exit 0
+  skip "post_merge_version_mismatch expected=$NEW_VERSION actual=${new:-unknown}"
 fi
 
-mkdir -p "${TON_ANALYST_STATE_DIR:-$HOME/.ton-analyst}"
-rm -f "${TON_ANALYST_STATE_DIR:-$HOME/.ton-analyst}/last-update-check"
-printf '%s %s %s\n' "$old" "$new" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "${TON_ANALYST_STATE_DIR:-$HOME/.ton-analyst}/just-updated"
+record_update "$old" "$new"
 
 echo "UPDATED $old $new $SKILL_DIR"

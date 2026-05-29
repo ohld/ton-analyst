@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run before the skill body does work: check the public version and auto-update
-# clean git-backed installs when possible.
+# the local install when possible.
 set -euo pipefail
 
 SKILL_DIR="${TON_ANALYST_SKILL_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"

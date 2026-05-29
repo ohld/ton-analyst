@@ -9,6 +9,7 @@
 - Trading-bot adoption reference and SQL examples based on the xRocket public Dune dashboard
 - Auto-update bootstrap that checks the public `VERSION` before skill work and fast-forwards safe git-backed installs
 - Dense lazy-load reference pages for Dune patterns, TON labels, Fragment mechanics, wallet investigation, and report format
+- Archive-based auto-update for non-git copied/plugin installs, enabled by default with backups and `.venv` preservation
 
 ### Changed
 - Split oversized reference files into short router pages plus narrow linked topic files
