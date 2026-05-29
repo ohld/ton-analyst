@@ -8,7 +8,7 @@ reference files.
 
 - Generates Dune SQL queries for TON on-chain analysis
 - Executes queries via Dune API and analyzes results
-- Covers supply distribution, wallet analysis, token flows, DeFi activity, staking, CEX flows, DEX bots/MEV
+- Covers supply distribution, wallet analysis, token flows, DeFi activity, staking, CEX flows, trading-bot adoption, DEX bots/MEV
 - Includes battle-tested SQL patterns for 13-category supply classification, real user filtering, whale tiers
 
 ## Install
@@ -154,6 +154,7 @@ Architecture backlog: [`docs/professionalization-plan.md`](docs/professionalizat
 - [TON Documentation](https://docs.ton.org/)
 - [TON Verticals Dashboard](https://dune.com/ton_foundation/verticals)
 - [TON DEX traders smart-contract evolution](https://dune.com/pshuvalov/ton-traders-types-analysis)
+- [Trading Bots on TON](https://dune.com/xrocket_tg/trading-bots-on-ton)
 - [Dune Spellbook — TON models](https://github.com/duneanalytics/spellbook/tree/main/dbt_subprojects/daily_spellbook/models/ton)
 - [ton-studio/ton-labels](https://github.com/ton-studio/ton-labels/) — address labels source
 - [TON On-Chain Data Analysis on Dune](https://ton.org/en/ton-on-chain-data-analysis-dune)

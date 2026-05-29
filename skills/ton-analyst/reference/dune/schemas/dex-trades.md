@@ -20,6 +20,8 @@ DEX swap data. Each row = one swap.
 | trace_id | string | For tonviewer links |
 | tx_hash | string | |
 | referral_address | string | Referral (if any) |
+| platform_tag | string | App/platform marker when decoded |
+| query_id | decimal(20,0) | TON message query id; useful for bot/app attribution |
 | version | int | |
 
 **TON/pTON token addresses** (covers 89% of all TON DEX sell volume in 2026):

@@ -15,3 +15,5 @@ Battle-tested queries with business context. All use patterns from ../query-patt
 | [fragment-inflows.sql](fragment-inflows.sql) | What are Fragment's inflow categories (Stars, Ads, Premium)? |
 | [fragment-outflows.sql](fragment-outflows.sql) | What are Fragment's outflow categories (cashouts, refunds)? |
 | [multi-hop-attribution.sql](multi-hop-attribution.sql) | How to trace fund flows through 4 hops with ratio attribution? |
+| [trading-bot-fee-adoption.sql](trading-bot-fee-adoption.sql) | How to estimate Telegram trading-bot fees, inferred volume, and active fee payers? |
+| [trading-bot-query-id-dex-volume.sql](trading-bot-query-id-dex-volume.sql) | How to attribute DEX volume to a trading bot by `query_id` namespace? |

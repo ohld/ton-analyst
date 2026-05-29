@@ -35,6 +35,7 @@ CTEs, classification logic, and conventions for TON Dune queries.
 29. **Ignore exact self-messages for counterparty classification.** TON wallet/contract implementations can emit `source = destination` messages with real value. They are technical mechanics, not external counterparties. Exclude only exact self-messages with `source IS NULL OR destination IS NULL OR source <> destination`; do not ignore same-owner or multi-hop transfers by heuristic.
 30. **Saved query execution does not refresh materialized views.** For `dune.<team>.result_*` tables, updating/executing the source query proves SQL but the table stays stale until the materialized-view refresh runs. Use the Dune Materialized Views refresh endpoint when you need the table updated immediately.
 31. **Dune execution parameters do not support `date`.** The API/MCP execution path supports `datetime`, `enum`, `number`, and `text`. For date-only parameters, use `text` and cast in SQL, e.g. `DATE '{{cutoff_date}}'`.
+32. **Trading-bot volume from fees is inferred, not observed.** Telegram bot dashboards often count inbound `ton.messages` fee transfers to known bot receivers, then multiply by `1 / fee_rate` (for example `value * 100` for a 1% fee). This is useful for fees, transactions, and active fee payers, but volume is only valid while the fee rate and memo/address rules are correct. Prefer `ton.dex_trades` joins by `query_id`, `platform_tag`, referral, or router marker when available; see [trading-bot-adoption.md](../techniques/trading-bot-adoption.md).
 
 ## Counterparty Filters
 
