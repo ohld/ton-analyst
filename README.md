@@ -55,9 +55,10 @@ For a local Claude-style personal skill install, run:
 ## Updates
 
 ton-analyst uses explicit versions. When the skill is invoked, it checks the
-published `VERSION` file before doing analysis. Clean git-backed Codex/local
-installs on `main` auto-update with a fast-forward pull; marketplace installs,
-forks, branches, and dirty worktrees get a skip notice and keep working. Full
+published `VERSION` file before doing analysis. Auto-update is enabled by
+default: clean git-backed installs fast-forward from `origin/main`, and plain
+copied/plugin installs download the GitHub archive and replace the local skill
+files with a backup. Set `TON_ANALYST_AUTO_UPDATE=0` to pin a local copy. Full
 flow: [`skills/ton-analyst/reference/update-flow.md`](skills/ton-analyst/reference/update-flow.md).
 
 To update manually in Claude Code:
@@ -115,7 +116,7 @@ skills/ton-analyst/
 │   ├── ton                     # TONAPI CLI wrapper
 │   ├── ton-analyst-bootstrap   # update-before-use entrypoint
 │   ├── ton-analyst-update-check
-│   ├── ton-analyst-upgrade     # conservative git fast-forward updater
+│   ├── ton-analyst-upgrade     # git/archive updater
 │   └── TODO.md                 # deferred subcommand ideas
 ├── setup                       # venv + wrapper installer
 ├── pyproject.toml              # CLI dependencies and pytest config
