@@ -24,7 +24,7 @@ Not all unlocked TON gets claimed — measure claim rate (historically ~12%). Us
 
 - **Contract source:** [ton-blockchain/vesting-contract](https://github.com/ton-blockchain/vesting-contract)
 - **Parameters:** 1440-day duration, 360-day cliff
-- **Detection:** Identify via `code_hash` in `ton.accounts` (see [query-patterns.md](../dune/query-patterns.md) code hash reference)
+- **Detection:** Identify via `code_hash` in `ton.accounts` (see [address-classification.md](../dune/patterns/address-classification.md))
 - **Deployer identification:** Find the address that deployed these contracts by checking the first inbound message to each vesting contract. Multiple deployers exist — Telegram uses specific deployer addresses.
 
 **Caveat:** The vesting contract is open-source. Other entities also deploy it with different parameters — don't assume all vesting contracts are Telegram's. Verify the deployer.

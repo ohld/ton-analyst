@@ -13,7 +13,7 @@ The [Elector contract](https://github.com/ton-blockchain/ton/blob/master/crypto/
 Most unstaking is **rotation** (validators moving between pools), not sell pressure. Methodology:
 
 1. Query Elector outflows → trace 3-hop through validators → pools → controllers → destination
-2. Classify by `code_hash` from `ton.accounts` ([code hash reference](../dune/query-patterns.md))
+2. Classify by `code_hash` from `ton.accounts` ([code hash reference](../dune/patterns/address-classification.md))
 3. ~75% = staking rotation, ~17% = CEX, rest = held/DEX/vesting
 
 See [flow-tracing.md](flow-tracing.md) for multi-hop ratio attribution.

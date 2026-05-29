@@ -4,6 +4,7 @@
 # Output:
 #   UPDATE_AVAILABLE <local> <remote>
 #   (nothing when up to date, disabled, offline, or cached quiet)
+#   With --json: stable JSON object for wrappers/tests.
 set -euo pipefail
 
 SKILL_DIR="${TON_ANALYST_SKILL_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -18,9 +19,42 @@ case "${TON_ANALYST_UPDATE_CHECK:-1}" in
   0|false|FALSE|off|OFF) exit 0 ;;
 esac
 
-if [ "${1:-}" = "--force" ]; then
+FORCE=0
+JSON=0
+for arg in "$@"; do
+  case "$arg" in
+    --force) FORCE=1 ;;
+    --json) JSON=1 ;;
+    --help|-h)
+      echo "Usage: ton-analyst-update-check [--force] [--json]"
+      exit 0
+      ;;
+  esac
+done
+
+if [ "$FORCE" = "1" ]; then
   rm -f "$CACHE_FILE"
 fi
+
+json_escape() {
+  printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'
+}
+
+emit_json() {
+  local status="$1" local_v="$2" remote_v="$3" update_available="$4" error="${5:-}"
+  printf '{\n'
+  printf '  "status": %s,\n' "$(json_escape "$status")"
+  printf '  "local_version": %s,\n' "$(json_escape "$local_v")"
+  printf '  "remote_version": %s,\n' "$(json_escape "$remote_v")"
+  printf '  "update_available": %s,\n' "$update_available"
+  printf '  "remote_url": %s' "$(json_escape "$REMOTE_URL")"
+  if [ -n "$error" ]; then
+    printf ',\n  "error": %s\n' "$(json_escape "$error")"
+  else
+    printf '\n'
+  fi
+  printf '}\n'
+}
 
 read_version() {
   tr -d '[:space:]' < "$1" 2>/dev/null || true
@@ -60,6 +94,9 @@ emit_cached_if_valid() {
     UP_TO_DATE\ *)
       cache_is_fresh "$UP_TO_DATE_TTL_MIN" || return 1
       [ "$(printf '%s\n' "$cached" | awk '{print $2}')" = "$LOCAL" ] || return 1
+      if [ "$JSON" = "1" ]; then
+        emit_json "up_to_date_cached" "$LOCAL" "$LOCAL" "false"
+      fi
       return 0
       ;;
     UPDATE_AVAILABLE\ *)
@@ -68,7 +105,11 @@ emit_cached_if_valid() {
       cached_remote="$(printf '%s\n' "$cached" | awk '{print $3}')"
       [ "$cached_local" = "$LOCAL" ] || return 1
       [ -n "$cached_remote" ] || return 1
-      printf '%s\n' "$cached"
+      if [ "$JSON" = "1" ]; then
+        emit_json "update_available_cached" "$cached_local" "$cached_remote" "true"
+      else
+        printf '%s\n' "$cached"
+      fi
       return 0
       ;;
   esac
@@ -77,6 +118,9 @@ emit_cached_if_valid() {
 
 LOCAL="$(read_version "$VERSION_FILE")"
 if ! is_version "$LOCAL"; then
+  if [ "$JSON" = "1" ]; then
+    emit_json "invalid_local_version" "$LOCAL" "" "false" "invalid_local_version"
+  fi
   exit 0
 fi
 
@@ -88,13 +132,23 @@ REMOTE="$(printf '%s\n' "$REMOTE" | tr -d '[:space:]')"
 
 if ! is_version "$REMOTE"; then
   printf 'UP_TO_DATE %s\n' "$LOCAL" > "$CACHE_FILE"
+  if [ "$JSON" = "1" ]; then
+    emit_json "remote_unavailable" "$LOCAL" "" "false" "remote_unavailable"
+  fi
   exit 0
 fi
 
 if ! version_gt "$REMOTE" "$LOCAL"; then
   printf 'UP_TO_DATE %s\n' "$LOCAL" > "$CACHE_FILE"
+  if [ "$JSON" = "1" ]; then
+    emit_json "up_to_date" "$LOCAL" "$REMOTE" "false"
+  fi
   exit 0
 fi
 
 printf 'UPDATE_AVAILABLE %s %s\n' "$LOCAL" "$REMOTE" > "$CACHE_FILE"
-printf 'UPDATE_AVAILABLE %s %s\n' "$LOCAL" "$REMOTE"
+if [ "$JSON" = "1" ]; then
+  emit_json "update_available" "$LOCAL" "$REMOTE" "true"
+else
+  printf 'UPDATE_AVAILABLE %s %s\n' "$LOCAL" "$REMOTE"
+fi

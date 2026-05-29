@@ -7,6 +7,12 @@
 - Compact SQL snippets for hash-signal detection and deployer/bot-cluster analysis
 - DuneSQL guidance for TON `interfaces` arrays, custodial-wallet self-message filtering, materialized-view refresh checks, and date-parameter handling
 - Trading-bot adoption reference and SQL examples based on the xRocket public Dune dashboard
+- Auto-update bootstrap that checks the public `VERSION` before skill work and fast-forwards safe git-backed installs
+- Dense lazy-load reference pages for Dune patterns, TON labels, Fragment mechanics, wallet investigation, and report format
+
+### Changed
+- Split oversized reference files into short router pages plus narrow linked topic files
+- Extended CI validation for bootstrap/update scripts, markdown links, and reference line budgets
 
 ## 0.4.0 — 2026-05-14
 

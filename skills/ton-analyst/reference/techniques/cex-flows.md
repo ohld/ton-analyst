@@ -69,6 +69,6 @@ Source query: [Q6871358](https://dune.com/queries/6871358)
 
 ## Related
 
-- CEX attribution capping: gotcha #18 in ../dune/query-patterns.md
+- CEX attribution capping: gotcha #19 in [gotchas.md](../dune/patterns/gotchas.md)
 - `result_custodial_wallets` full schema: [../dune/schemas/accounts.md](../dune/schemas/accounts.md)
-- Multi-hop tracing with CEX as destination: flow-tracing.md
+- Multi-hop tracing with CEX as destination: [flow-tracing.md](flow-tracing.md)
