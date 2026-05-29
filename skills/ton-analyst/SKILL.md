@@ -87,13 +87,13 @@ This skill works best with the Dune MCP server connected. Setup: `reference/dune
 | `ton.messages` | All messages: source, destination, value, block_date |
 | `ton.balances_history` | Balance change-log (NOT snapshots) |
 | `ton.jetton_events` | Jetton transfers |
-| `ton.prices_daily` | Daily prices (decimals pre-incorporated) |
+| `ton.prices_daily` | Daily prices per raw unit |
 | `ton.dex_trades` | DEX swaps |
 | `ton.latest_balances` | Current balance snapshot |
 | `dune.ton_foundation.dataset_labels` | Named entities (~3,150) |
 | `dune.ton_foundation.result_custodial_wallets` | CEX deposit wallets (~9.6M) |
 | `dune.ton_foundation.result_external_balances_history` | DeFi positions |
-| `dune.ton_foundation.result_sybil_wallets` | Sybil/bot addresses (~153K) |
+| `dune.ton_foundation.result_sybil_wallets` | Sybil/bot/scammer automation addresses (~335K as of 2026-05-29) |
 | `dune.ton_foundation.result_nominators_cashflow` | Staking flows |
 | `ton.nft_events` | NFT sales, mints, transfers, bids |
 | `ton.nft_metadata` | NFT/collection names and metadata |
@@ -120,6 +120,8 @@ Every research report MUST:
 
 ## Reference
 
+- `reference/index.md` — start here to route tasks to the right narrow reference
+- `reference/dune/assets.md` — native TON and canonical USDT constants/snippets
 - **reference/dune/** — Dune schemas (with inline mat view docs), query patterns, dashboards, API, examples
 - **reference/ton/** — TON blockchain model, labels, address investigation, TONAPI
 - **reference/techniques/** — CEX flows, flow tracing, staking, DEX wash detection, vesting, fees, MAU measurement

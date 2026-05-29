@@ -36,6 +36,9 @@
 | TON Ecosystem Reserve | `0:66CD6E30625156D2D881823E6C3F50A04A52DD62CF95A633D633BA0F60F61640` | 281 |
 | USDT Jetton Master | `0:B113A994B5024A16719F69139328EB759596C38A25F59028B146FECDC3621DFE` | — |
 
+See [../dune/assets.md](../dune/assets.md) for TON/USDT decimals, UQ/EQ
+formats, and balance snippets.
+
 ## Key Labels for Supply Analysis
 
 | Label | TON (M) | Category |
@@ -68,7 +71,8 @@ Many DeFi pool contracts are NOT in `dataset_labels`. Build DEFI_LABELS CTE from
 
 ## Sybil Wallets
 
-`result_sybil_wallets` — ~153K addresses flagged as sybil/bot.
+`result_sybil_wallets` — ~335K addresses flagged as sybil/bot/scammer
+automation after the safer 2026-05-29 scammer-detector update.
 
 **Sybil wallets materialized view:** https://dune.com/queries/5206440 — how sybil addresses were identified.
 

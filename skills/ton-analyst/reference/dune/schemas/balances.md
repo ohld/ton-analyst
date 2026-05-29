@@ -1,5 +1,8 @@
 # Balance Tables
 
+For native TON and canonical USDT constants, decimals, and copy-paste snippets,
+read [../assets.md](../assets.md) first.
+
 ## ton.balances_history
 
 Records every **change** in balance. Change-log format, NOT snapshots.
@@ -10,7 +13,7 @@ Records every **change** in balance. Change-log format, NOT snapshots.
 | block_time | timestamp | |
 | address | string | Raw format |
 | asset | string | `'TON'` for native, jetton_master address for jettons |
-| amount | decimal(38,0) | Balance AFTER the change (raw units) |
+| amount | decimal(38,0) | Balance AFTER the change (raw units; TON = nanoTON) |
 
 **Critical:** No row = no change that day. Use `MAX_BY(amount, block_date)` for snapshots. See ../query-patterns.md for forward-fill.
 
@@ -31,6 +34,10 @@ Current balance snapshot. Simpler than reconstructing from `balances_history`.
 | address | string | |
 | asset | string | Unique key: address + asset |
 | amount | decimal(38,0) | Current balance (raw units) |
+
+Canonical USDT is the raw jetton master
+`0:B113A994B5024A16719F69139328EB759596C38A25F59028B146FECDC3621DFE`
+with 6 decimals.
 
 ## dune.ton_foundation.result_external_balances_history
 

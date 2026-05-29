@@ -113,9 +113,11 @@ skills/ton-analyst/
 ├── uv.lock
 ├── tests/                      # pytest suite, httpx.MockTransport — no network
 └── reference/
+    ├── index.md               # Route tasks to the smallest useful reference
     ├── cli.md                  # `ton` CLI reference
     ├── update-flow.md          # Versioning and local/marketplace update flow
-    ├── dune/                   # MCP/API workflow, schemas, query patterns, examples
+    ├── local-learnings.md      # Repeated mistakes before promotion to refs
+    ├── dune/                   # MCP/API workflow, asset constants, schemas, examples
     ├── ton/                    # TON model, TONAPI, labels, address investigation
     └── techniques/             # CEX flows, staking, vesting, MEV, MAU, fees
 ```
