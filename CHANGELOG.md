@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Bridge analytics reference: canonical dashboard query, ton-labels bridge workflow, resolver-based escrow counting, and user-count caveats
 - Priority-mining / TON MEV reference based on the public TON DEX traders dashboard
 - Compact SQL snippets for hash-signal detection and deployer/bot-cluster analysis
 - DuneSQL guidance for TON `interfaces` arrays, custodial-wallet self-message filtering, materialized-view refresh checks, and date-parameter handling
