@@ -127,7 +127,7 @@ Full schemas: reference/dune/schemas/
 - `reference/dune/query-patterns.md` — router for Dune gotchas and reusable CTEs
 - **reference/dune/** — Dune schemas, dashboards, API, examples, and patterns
 - **reference/ton/** — TON blockchain model, labels, wallet investigation, TONAPI
-- **reference/techniques/** — CEX flows, flow tracing, staking, trading bots, DEX wash detection, vesting, fees, MAU measurement
+- **reference/techniques/** — CEX flows, flow tracing, bridges, staking, trading bots, DEX wash detection, vesting, fees, MAU measurement
 - **reference/update-flow.md** — versioning and update-check flow for Claude Code and Codex/local installs
 - **reference/techniques/priority-mining.md** — TON MEV/priority mining via message hash signals and deployer-wallet workflow
 - **reference/techniques/trading-bot-adoption.md** — Telegram trading-bot fee/adoption heuristics and DEX `query_id` linking
